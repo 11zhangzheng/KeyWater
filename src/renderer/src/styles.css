@@ -1,0 +1,592 @@
+/* ============================================================
+   水蓝蓝 — Pixel Water Drop Pet Desktop Widget
+   Pure 8bit pixel art, zero text, zero UI chrome
+   ============================================================ */
+
+/* ── Design Tokens ── */
+:root {
+  --pet-body: #D0DCE8;
+  --pet-outline: #8898A8;
+  --water: #A8D0F0;
+  --water-bright: #88C0E8;
+  --pet-hi: #E0ECF4;
+  --blush: rgba(220, 160, 150, 0.35);
+  --empty-glow: rgba(168, 208, 240, 0.5);
+
+  --menu-bg: rgba(232, 240, 248, 0.94);
+  --menu-border: #B8C8D4;
+  --menu-hover: rgba(168, 208, 240, 0.25);
+  --menu-text: #4A5868;
+  --menu-sep: #C8D4DC;
+
+  --hud-bg: rgba(232, 240, 248, 0.94);
+  --hud-border: #B8C8D4;
+  --hud-text: #4A5868;
+  --hud-accent: #6898C0;
+
+  color: var(--menu-text);
+  background: transparent;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+}
+
+/* ── Dark mode: 10% dimmer ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --pet-body: #B8C8D8;
+    --pet-outline: #708090;
+    --water: #90C0E4;
+    --water-bright: #78B0D8;
+    --pet-hi: #C8D8E8;
+    --blush: rgba(200, 140, 130, 0.3);
+    --empty-glow: rgba(144, 192, 228, 0.4);
+
+    --menu-bg: rgba(32, 40, 48, 0.94);
+    --menu-border: #506068;
+    --menu-hover: rgba(100, 140, 180, 0.2);
+    --menu-text: #C0CCD4;
+    --menu-sep: #404850;
+
+    --hud-bg: rgba(32, 40, 48, 0.94);
+    --hud-border: #506068;
+    --hud-text: #C0CCD4;
+    --hud-accent: #80B0D0;
+  }
+}
+
+/* ── Base Reset ── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── Shell ── */
+.widget-shell {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  pointer-events: none;
+}
+
+.widget {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.widget.no-anim * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── Pet Container ── */
+.pet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  pointer-events: auto;
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+
+.pet:active {
+  cursor: grabbing;
+}
+
+/* ── Pet Body (teardrop shape via mask) ── */
+.pet-body {
+  position: absolute;
+  inset: 0;
+  background: var(--pet-body);
+  /* Teardrop shape: pointed top, round middle, tapered bottom */
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 2 C24 2 30 14 36 22 C42 30 40 40 36 44 C32 48 16 48 12 44 C8 40 6 30 12 22 C18 14 24 2 24 2Z' fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 2 C24 2 30 14 36 22 C42 30 40 40 36 44 C32 48 16 48 12 44 C8 40 6 30 12 22 C18 14 24 2 24 2Z' fill='white'/%3E%3C/svg%3E");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  overflow: hidden;
+}
+
+/* Outline via box-shadow (masked to teardrop) */
+.pet-body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 2px var(--pet-outline),
+    0 0 0 2px var(--pet-outline);
+}
+
+/* ── Water Fill ── */
+.water {
+  position: absolute;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+  height: 100%;
+  background: var(--water);
+  transition: height 0.8s ease-out;
+  z-index: 0;
+}
+
+.refilling .water {
+  transition: height 0.3s ease-in !important;
+}
+
+/* Water pixel highlights */
+.water-sparkle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.5);
+  z-index: 1;
+  animation: sparkle 4s steps(3) infinite;
+}
+
+/* ── Face Layer ── */
+.face {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Eyes ── */
+.eye {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  background: var(--pet-outline);
+  top: 38%;
+  transition: all 0.3s steps(3);
+}
+
+.eye-l { left: 30%; }
+.eye-r { right: 30%; }
+
+/* Happy eye highlight */
+.eye::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 2px;
+  background: var(--pet-hi);
+  transition: opacity 0.3s;
+}
+
+/* ── Mouth ── */
+.mouth {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 56%;
+  transition: all 0.3s steps(3);
+}
+
+/* Happy: smile arc */
+.mouth-happy {
+  width: 8px;
+  height: 4px;
+  border: 2px solid var(--pet-outline);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* Normal: small line */
+.mouth-normal {
+  width: 6px;
+  height: 2px;
+  background: var(--pet-outline);
+}
+
+/* Thirsty: wavy frown */
+.mouth-thirsty {
+  width: 10px;
+  height: 4px;
+  border-bottom: 2px solid var(--pet-outline);
+  border-left: 2px solid var(--pet-outline);
+  border-right: 2px solid var(--pet-outline);
+  border-top: none;
+}
+
+/* ── Blush ── */
+.blush {
+  position: absolute;
+  width: 6px;
+  height: 3px;
+  background: var(--blush);
+  top: 48%;
+  transition: opacity 0.3s;
+  z-index: 1;
+}
+
+.blush-l { left: 16%; }
+.blush-r { right: 16%; }
+
+/* ── Sweat Drop (thirsty) ── */
+.sweat {
+  position: absolute;
+  right: 22%;
+  top: 28%;
+  width: 3px;
+  height: 4px;
+  background: var(--water);
+  opacity: 0;
+  z-index: 3;
+}
+
+/* ── Sleep Zzz (empty) ── */
+.zzz {
+  position: absolute;
+  right: 14%;
+  top: 18%;
+  font-size: 6px;
+  color: var(--pet-outline);
+  opacity: 0;
+  z-index: 3;
+  letter-spacing: 1px;
+}
+
+/* ══════════════════════════════════════════
+   STATE: Full (100%–80%)
+   ══════════════════════════════════════════ */
+.state-full .pet {
+  animation: pet-float 3s ease-in-out infinite;
+}
+
+.state-full .eye {
+  height: 6px;
+  top: 36%;
+}
+
+.state-full .blush {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════
+   STATE: Normal (80%–40%)
+   ══════════════════════════════════════════ */
+.state-normal .pet {
+  animation: pet-breathe 4s ease-in-out infinite;
+}
+
+.state-normal .blush {
+  opacity: 0.4;
+}
+
+/* ══════════════════════════════════════════
+   STATE: Thirsty (40%–10%)
+   ══════════════════════════════════════════ */
+.state-thirsty .pet {
+  animation: pet-shake 2.5s steps(4) infinite;
+}
+
+.state-thirsty .eye {
+  height: 4px;
+  top: 40%;
+}
+
+.state-thirsty .eye::after {
+  opacity: 0;
+}
+
+.state-thirsty .blush {
+  opacity: 0;
+}
+
+.state-thirsty .sweat {
+  animation: sweat-drop 1.8s steps(3) infinite;
+}
+
+/* ══════════════════════════════════════════
+   STATE: Empty (0%)
+   ══════════════════════════════════════════ */
+.state-empty .pet {
+  animation: empty-glow 2.5s ease-in-out infinite;
+}
+
+.state-empty .pet-body {
+  background: var(--pet-outline);
+}
+
+.state-empty .eye {
+  height: 2px;
+  top: 42%;
+  width: 6px;
+  border-radius: 0;
+}
+
+.state-empty .eye::after {
+  opacity: 0;
+}
+
+.state-empty .mouth {
+  display: none;
+}
+
+.state-empty .blush {
+  opacity: 0;
+}
+
+.state-empty .zzz {
+  animation: zzz-float 2s ease-in-out infinite;
+}
+
+.state-empty .sweat {
+  display: none;
+}
+
+/* ══════════════════════════════════════════
+   REFILL ANIMATION
+   ══════════════════════════════════════════ */
+.refilling .pet-body {
+  animation: refill-pop 0.5s ease-out;
+}
+
+/* ══════════════════════════════════════════
+   KEYFRAMES
+   ══════════════════════════════════════════ */
+
+/* Idle float — full */
+@keyframes pet-float {
+  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+  50% { transform: translate(-50%, -50%) translateY(-2px); }
+}
+
+/* Breathing — normal */
+@keyframes pet-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.01); }
+}
+
+/* Shaking — thirsty */
+@keyframes pet-shake {
+  0%   { transform: translate(-50%, -50%) rotate(0deg); }
+  15%  { transform: translate(calc(-50% - 2px), -50%) rotate(-3deg); }
+  30%  { transform: translate(-50%, -50%) rotate(0deg); }
+  45%  { transform: translate(calc(-50% + 2px), -50%) rotate(3deg); }
+  60%  { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(0deg); }
+}
+
+/* Empty glow pulse */
+@keyframes empty-glow {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 transparent);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px var(--empty-glow));
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+}
+
+/* Sweat drop fall */
+@keyframes sweat-drop {
+  0%   { transform: translateY(0); opacity: 0; }
+  15%  { opacity: 0.9; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+
+/* Zzz float */
+@keyframes zzz-float {
+  0%   { transform: translateY(0); opacity: 0; }
+  20%  { opacity: 0.7; }
+  100% { transform: translateY(-10px); opacity: 0; }
+}
+
+/* Refill pop */
+@keyframes refill-pop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.12); }
+  60%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+/* Water sparkle */
+@keyframes sparkle {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* ══════════════════════════════════════════
+   CONTEXT MENU
+   ══════════════════════════════════════════ */
+.menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.context-menu {
+  position: absolute;
+  min-width: 120px;
+  background: var(--menu-bg);
+  border: 2px solid var(--menu-border);
+  padding: 4px 0;
+  z-index: 101;
+  image-rendering: pixelated;
+  image-rendering: -webkit-optimize-contrast;
+  pointer-events: auto;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 5px 10px;
+  color: var(--menu-text);
+  font-size: 7px;
+  text-align: left;
+  gap: 10px;
+}
+
+.menu-item:hover {
+  background: var(--menu-hover);
+}
+
+.menu-sep {
+  height: 1px;
+  background: var(--menu-sep);
+  margin: 3px 6px;
+}
+
+/* ══════════════════════════════════════════
+   HUD (SIP confirmation overlay)
+   ══════════════════════════════════════════ */
+.hud-shell {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+
+.hud {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: hud-in 0.15s steps(2), hud-settle 1s steps(6);
+}
+
+.hud-scan {
+  position: absolute;
+  width: 200px;
+  height: 76px;
+  background:
+    linear-gradient(90deg, transparent, rgba(168, 208, 240, 0.3), transparent),
+    repeating-linear-gradient(0deg, rgba(168, 208, 240, 0.08) 0 2px, transparent 2px 8px);
+  opacity: 0;
+  transform: translateX(-80px);
+  animation: hud-scan 1s steps(8) forwards;
+}
+
+.hud-ring {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border: 3px solid var(--hud-border);
+  animation: hud-pulse 1s steps(6) forwards;
+}
+
+.hud-orbit {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border: 2px dashed var(--pet-outline);
+  opacity: 0.5;
+  animation: hud-spin 1s steps(8) forwards;
+}
+
+.hud-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  background: var(--hud-bg);
+  border: 2px solid var(--hud-border);
+  color: var(--hud-text);
+  z-index: 1;
+}
+
+.hud-copy strong {
+  font-size: 13px;
+  color: var(--hud-accent);
+}
+
+.hud-copy span {
+  color: var(--pet-outline);
+  font-size: 7px;
+}
+
+/* HUD keyframes */
+@keyframes hud-in {
+  from { transform: scale(0.9); opacity: 0; }
+}
+
+@keyframes hud-settle {
+  0% { filter: saturate(1.3); }
+  100% { filter: saturate(1); }
+}
+
+@keyframes hud-scan {
+  0% { opacity: 0; transform: translateX(-80px); }
+  15%, 75% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateX(80px); }
+}
+
+@keyframes hud-pulse {
+  0% { transform: scale(0.85); opacity: 0; }
+  35% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.65; }
+}
+
+@keyframes hud-spin {
+  0% { transform: rotate(0deg) scale(0.94); opacity: 0; }
+  25% { opacity: 0.7; }
+  to { transform: rotate(360deg) scale(1); opacity: 0.25; }
+}
+
+/* ── Accessibility ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
