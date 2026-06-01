@@ -1,17 +1,24 @@
 /* ============================================================
-   水蓝蓝 — Pixel Water Drop Pet Desktop Widget
-   Pure 8bit pixel art, zero text, zero UI chrome
+   水蓝蓝 — Pixel Water Spirit Desktop Pet
+   Round body, red goggles, blue crown, cute face
    ============================================================ */
 
 /* ── Design Tokens ── */
 :root {
-  --pet-body: #D0DCE8;
-  --pet-outline: #8898A8;
-  --water: #A8D0F0;
-  --water-bright: #88C0E8;
-  --pet-hi: #E0ECF4;
-  --blush: rgba(220, 160, 150, 0.35);
-  --empty-glow: rgba(168, 208, 240, 0.5);
+  --pet-body: #D8ECF8;
+  --pet-body-dark: #B0D0E8;
+  --pet-outline: #2848A0;
+  --water: #60B8F0;
+  --water-mid: #80D0F8;
+  --water-light: #B0E4FF;
+  --goggle-red: #D03030;
+  --goggle-red-dark: #A02020;
+  --goggle-yellow: #F0C830;
+  --crown-blue: #50A8E8;
+  --crown-light: #80D0F8;
+  --pet-hi: #E8F4FF;
+  --blush: rgba(255, 160, 150, 0.45);
+  --feet-blue: #68B8F0;
 
   --menu-bg: rgba(232, 240, 248, 0.94);
   --menu-border: #B8C8D4;
@@ -30,16 +37,20 @@
   font-size: 10px;
 }
 
-/* ── Dark mode: 10% dimmer ── */
+/* ── Dark mode ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --pet-body: #B8C8D8;
-    --pet-outline: #708090;
-    --water: #90C0E4;
-    --water-bright: #78B0D8;
-    --pet-hi: #C8D8E8;
-    --blush: rgba(200, 140, 130, 0.3);
-    --empty-glow: rgba(144, 192, 228, 0.4);
+    --pet-body: #B8CCD8;
+    --pet-body-dark: #90B0C8;
+    --pet-outline: #203880;
+    --water: #50A0D8;
+    --water-mid: #70B8E8;
+    --water-light: #98D0F0;
+    --crown-blue: #4090C8;
+    --crown-light: #68B8E0;
+    --pet-hi: #C8E0F0;
+    --blush: rgba(220, 140, 130, 0.4);
+    --feet-blue: #58A0D8;
 
     --menu-bg: rgba(32, 40, 48, 0.94);
     --menu-border: #506068;
@@ -55,90 +66,126 @@
 }
 
 /* ── Base Reset ── */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html,
-body,
-#root {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root {
+  width: 100%; height: 100%; overflow: hidden;
   background: transparent;
-  -webkit-user-select: none;
-  user-select: none;
+  -webkit-user-select: none; user-select: none;
 }
-
 button {
-  font: inherit;
-  border: none;
-  outline: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
+  font: inherit; border: none; outline: none;
+  background: none; color: inherit; cursor: pointer;
 }
 
 /* ── Shell ── */
-.widget-shell {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  pointer-events: none;
-}
-
-.widget {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-.widget.no-anim * {
-  animation: none !important;
-  transition: none !important;
-}
+.widget-shell { width: 100%; height: 100%; position: relative; pointer-events: none; }
+.widget { width: 100%; height: 100%; position: relative; }
+.widget.no-anim * { animation: none !important; transition: none !important; }
 
 /* ── Pet Container ── */
 .pet {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
+  width: 48px; height: 48px;
   pointer-events: auto;
   -webkit-app-region: drag;
   cursor: grab;
 }
+.pet:active { cursor: grabbing; }
 
-.pet:active {
-  cursor: grabbing;
+/* ── Pet Anchor (idle float animation) ── */
+.pet-anchor {
+  position: relative;
+  width: 100%; height: 100%;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
 }
 
-/* ── Pet Body (teardrop shape via mask) ── */
+/* ════════════════════════════════════════
+   CROWN (water splash on top)
+   ════════════════════════════════════════ */
+.crown {
+  position: absolute;
+  top: -14px; left: 50%;
+  transform: translateX(-50%);
+  width: 16px; height: 14px;
+  z-index: 10;
+  transition: opacity 0.4s steps(3), top 0.4s steps(3);
+}
+
+/* Center spire */
+.crown-center {
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 10px;
+  background: var(--crown-blue);
+  box-shadow:
+    0 -2px 0 0 var(--crown-blue),
+    0 -4px 0 0 var(--crown-light),
+    /* left branch */
+    -4px -2px 0 0 var(--crown-blue),
+    -6px -4px 0 0 var(--crown-light),
+    -4px -6px 0 0 var(--crown-light),
+    /* right branch */
+    4px -2px 0 0 var(--crown-blue),
+    6px -4px 0 0 var(--crown-light),
+    4px -6px 0 0 var(--crown-light),
+    /* far left droplet */
+    -8px 0 0 0 var(--crown-blue),
+    -10px -2px 0 0 var(--crown-light),
+    /* far right droplet */
+    8px 0 0 0 var(--crown-blue),
+    10px -2px 0 0 var(--crown-light),
+    /* top tips */
+    0 -6px 0 0 var(--crown-light),
+    0 -8px 0 0 var(--crown-light);
+}
+
+/* ════════════════════════════════════════
+   RED GOGGLES
+   ════════════════════════════════════════ */
+.goggles {
+  position: absolute;
+  top: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 36px; height: 10px;
+  z-index: 8;
+}
+
+.goggle-l, .goggle-r {
+  position: absolute;
+  top: 0; width: 14px; height: 8px;
+  background: var(--goggle-red);
+  box-shadow:
+    0 -2px 0 0 var(--goggle-red-dark),
+    0 2px 0 0 var(--goggle-red-dark),
+    -2px 0 0 0 var(--goggle-red-dark),
+    2px 0 0 0 var(--goggle-red-dark);
+}
+
+.goggle-l { left: 0; }
+.goggle-r { right: 0; }
+
+.goggle-center {
+  position: absolute;
+  top: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 4px; height: 4px;
+  background: var(--goggle-yellow);
+}
+
+/* ════════════════════════════════════════
+   BODY (round water blob)
+   ════════════════════════════════════════ */
 .pet-body {
   position: absolute;
-  inset: 0;
+  top: 10px; left: 2px; right: 2px; bottom: 8px;
   background: var(--pet-body);
-  /* Teardrop shape: pointed top, round middle, tapered bottom */
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 2 C24 2 30 14 36 22 C42 30 40 40 36 44 C32 48 16 48 12 44 C8 40 6 30 12 22 C18 14 24 2 24 2Z' fill='white'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M24 2 C24 2 30 14 36 22 C42 30 40 40 36 44 C32 48 16 48 12 44 C8 40 6 30 12 22 C18 14 24 2 24 2Z' fill='white'/%3E%3C/svg%3E");
-  -webkit-mask-size: contain;
-  mask-size: contain;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  border-radius: 50%;
   overflow: hidden;
-}
-
-/* Outline via box-shadow (masked to teardrop) */
-.pet-body::after {
-  content: '';
-  position: absolute;
-  inset: 0;
+  /* Round body outline */
   box-shadow:
     inset 0 0 0 2px var(--pet-outline),
     0 0 0 2px var(--pet-outline);
@@ -147,11 +194,9 @@ button {
 /* ── Water Fill ── */
 .water {
   position: absolute;
-  bottom: 0;
-  left: -4px;
-  right: -4px;
+  bottom: 0; left: 0; right: 0;
   height: 100%;
-  background: var(--water);
+  background: linear-gradient(180deg, var(--water-light) 0%, var(--water) 60%, var(--water-mid) 100%);
   transition: height 0.8s ease-out;
   z-index: 0;
 }
@@ -160,271 +205,384 @@ button {
   transition: height 0.3s ease-in !important;
 }
 
-/* Water pixel highlights */
+/* Water surface wave */
+.water::after {
+  content: '';
+  position: absolute;
+  top: -3px; left: -2px; right: -2px;
+  height: 6px;
+  background: var(--water-light);
+  clip-path: polygon(
+    0% 60%, 8% 20%, 16% 60%, 24% 20%, 32% 60%, 40% 20%,
+    48% 60%, 56% 20%, 64% 60%, 72% 20%, 80% 60%, 88% 20%,
+    96% 60%, 100% 20%, 100% 100%, 0% 100%
+  );
+  animation: wave 2.5s steps(2) infinite;
+}
+
+/* ── Bubbles ── */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 1;
+  animation: bubble-rise 3.5s ease-out infinite;
+}
+
+.bubble-1 { width: 3px; height: 3px; left: 28%; bottom: 10%; animation-delay: 0s; }
+.bubble-2 { width: 2px; height: 2px; left: 55%; bottom: 20%; animation-delay: 1.2s; }
+.bubble-3 { width: 2px; height: 2px; left: 40%; bottom: 5%; animation-delay: 2.4s; }
+
+/* Water sparkles */
 .water-sparkle {
   position: absolute;
-  width: 2px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.5);
+  width: 2px; height: 2px;
+  background: rgba(255, 255, 255, 0.55);
   z-index: 1;
   animation: sparkle 4s steps(3) infinite;
 }
 
-/* ── Face Layer ── */
+/* ════════════════════════════════════════
+   FACE
+   ════════════════════════════════════════ */
 .face {
   position: absolute;
-  inset: 0;
-  z-index: 2;
+  inset: 0; z-index: 2;
   pointer-events: none;
 }
 
-/* ── Eyes ── */
+/* Eyes */
 .eye {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 5px; height: 5px;
   background: var(--pet-outline);
-  top: 38%;
+  top: 42%;
   transition: all 0.3s steps(3);
+  z-index: 2;
 }
+.eye-l { left: 28%; }
+.eye-r { right: 28%; }
 
-.eye-l { left: 30%; }
-.eye-r { right: 30%; }
-
-/* Happy eye highlight */
+/* Eye highlight */
 .eye::after {
   content: '';
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 2px;
-  height: 2px;
-  background: var(--pet-hi);
+  top: 0; right: 0;
+  width: 2px; height: 2px;
+  background: #fff;
   transition: opacity 0.3s;
 }
 
-/* ── Mouth ── */
+/* Mouth */
 .mouth {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 56%;
+  left: 50%; transform: translateX(-50%);
+  top: 60%;
+  z-index: 2;
   transition: all 0.3s steps(3);
 }
 
-/* Happy: smile arc */
 .mouth-happy {
-  width: 8px;
-  height: 4px;
+  width: 6px; height: 3px;
   border: 2px solid var(--pet-outline);
   border-top: none;
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 6px 6px;
 }
 
-/* Normal: small line */
 .mouth-normal {
-  width: 6px;
-  height: 2px;
+  width: 4px; height: 2px;
   background: var(--pet-outline);
 }
 
-/* Thirsty: wavy frown */
 .mouth-thirsty {
-  width: 10px;
-  height: 4px;
-  border-bottom: 2px solid var(--pet-outline);
-  border-left: 2px solid var(--pet-outline);
-  border-right: 2px solid var(--pet-outline);
+  width: 6px; height: 3px;
+  border: 2px solid var(--pet-outline);
   border-top: none;
+  border-radius: 0 0 2px 2px;
 }
 
-/* ── Blush ── */
+/* Blush */
 .blush {
   position: absolute;
-  width: 6px;
-  height: 3px;
+  width: 6px; height: 3px;
   background: var(--blush);
-  top: 48%;
+  top: 52%;
   transition: opacity 0.3s;
   z-index: 1;
 }
+.blush-l { left: 14%; }
+.blush-r { right: 14%; }
 
-.blush-l { left: 16%; }
-.blush-r { right: 16%; }
-
-/* ── Sweat Drop (thirsty) ── */
+/* Sweat (thirsty) */
 .sweat {
   position: absolute;
-  right: 22%;
-  top: 28%;
-  width: 3px;
-  height: 4px;
+  right: 18%; top: 34%;
+  width: 3px; height: 5px;
   background: var(--water);
-  opacity: 0;
-  z-index: 3;
+  clip-path: polygon(50% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
+  opacity: 0; z-index: 3;
 }
 
-/* ── Sleep Zzz (empty) ── */
+/* Zzz (empty) */
 .zzz {
   position: absolute;
-  right: 14%;
-  top: 18%;
+  right: 12%; top: 26%;
   font-size: 6px;
   color: var(--pet-outline);
-  opacity: 0;
-  z-index: 3;
-  letter-spacing: 1px;
+  opacity: 0; z-index: 3;
 }
 
-/* ══════════════════════════════════════════
+/* ════════════════════════════════════════
+   FEET
+   ════════════════════════════════════════ */
+.feet {
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 28px; height: 8px;
+  z-index: 6;
+}
+
+.foot {
+  position: absolute;
+  bottom: 0;
+  width: 10px; height: 6px;
+  background: var(--feet-blue);
+  box-shadow:
+    0 -2px 0 0 var(--pet-outline),
+    -2px 0 0 0 var(--pet-outline),
+    2px 0 0 0 var(--pet-outline),
+    0 2px 0 0 var(--pet-outline);
+}
+
+.foot-l { left: 2px; }
+.foot-r { right: 2px; }
+
+/* ════════════════════════════════════════
+   ARMS
+   ════════════════════════════════════════ */
+.arms {
+  position: absolute;
+  top: 45%; left: 0; right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.arm {
+  position: absolute;
+  width: 6px; height: 6px;
+  background: var(--pet-body);
+  border: 2px solid var(--pet-outline);
+  border-radius: 50%;
+}
+
+.arm-l { left: -3px; }
+.arm-r { right: -3px; }
+
+/* ════════════════════════════════════════
    STATE: Full (100%–80%)
-   ══════════════════════════════════════════ */
-.state-full .pet {
+   ════════════════════════════════════════ */
+.state-full .pet-anchor {
   animation: pet-float 3s ease-in-out infinite;
 }
 
 .state-full .eye {
-  height: 6px;
-  top: 36%;
+  height: 6px; top: 40%;
 }
 
-.state-full .blush {
+.state-full .blush { opacity: 1; }
+
+.state-full .crown {
+  top: -16px;
   opacity: 1;
 }
 
-/* ══════════════════════════════════════════
+/* ════════════════════════════════════════
    STATE: Normal (80%–40%)
-   ══════════════════════════════════════════ */
-.state-normal .pet {
+   ════════════════════════════════════════ */
+.state-normal .pet-anchor {
   animation: pet-breathe 4s ease-in-out infinite;
 }
 
-.state-normal .blush {
-  opacity: 0.4;
+.state-normal .blush { opacity: 0.5; }
+
+.state-normal .crown {
+  top: -12px;
+  opacity: 0.8;
 }
 
-/* ══════════════════════════════════════════
+.state-normal .crown-center {
+  box-shadow:
+    0 -2px 0 0 var(--crown-blue),
+    0 -4px 0 0 var(--crown-light),
+    -4px -2px 0 0 var(--crown-blue),
+    -6px -4px 0 0 var(--crown-light),
+    4px -2px 0 0 var(--crown-blue),
+    6px -4px 0 0 var(--crown-light),
+    0 -6px 0 0 var(--crown-light);
+}
+
+/* ════════════════════════════════════════
    STATE: Thirsty (40%–10%)
-   ══════════════════════════════════════════ */
+   ════════════════════════════════════════ */
 .state-thirsty .pet {
   animation: pet-shake 2.5s steps(4) infinite;
 }
 
 .state-thirsty .eye {
-  height: 4px;
-  top: 40%;
+  height: 3px; top: 44%;
 }
 
-.state-thirsty .eye::after {
-  opacity: 0;
-}
+.state-thirsty .eye::after { opacity: 0; }
 
-.state-thirsty .blush {
-  opacity: 0;
-}
+.state-thirsty .blush { opacity: 0.2; }
 
 .state-thirsty .sweat {
   animation: sweat-drop 1.8s steps(3) infinite;
 }
 
-/* ══════════════════════════════════════════
+.state-thirsty .crown {
+  top: -8px;
+  opacity: 0.5;
+}
+
+.state-thirsty .crown-center {
+  box-shadow:
+    0 -2px 0 0 var(--crown-blue),
+    -3px -1px 0 0 var(--crown-blue),
+    3px -1px 0 0 var(--crown-blue);
+}
+
+/* ════════════════════════════════════════
    STATE: Empty (0%)
-   ══════════════════════════════════════════ */
-.state-empty .pet {
+   ════════════════════════════════════════ */
+.state-empty .pet-anchor {
   animation: empty-glow 2.5s ease-in-out infinite;
 }
 
 .state-empty .pet-body {
-  background: var(--pet-outline);
+  background: #D0D8E0;
 }
 
 .state-empty .eye {
-  height: 2px;
-  top: 42%;
+  height: 2px; top: 46%;
   width: 6px;
-  border-radius: 0;
 }
 
-.state-empty .eye::after {
-  opacity: 0;
-}
+.state-empty .eye::after { opacity: 0; }
 
-.state-empty .mouth {
-  display: none;
-}
+.state-empty .mouth { display: none; }
 
-.state-empty .blush {
-  opacity: 0;
-}
+.state-empty .blush { opacity: 0; }
 
 .state-empty .zzz {
   animation: zzz-float 2s ease-in-out infinite;
 }
 
-.state-empty .sweat {
-  display: none;
+.state-empty .sweat { display: none; }
+
+.state-empty .crown {
+  top: -4px;
+  opacity: 0.3;
 }
 
-/* ══════════════════════════════════════════
+.state-empty .crown-center {
+  box-shadow:
+    0 -1px 0 0 var(--crown-blue),
+    -2px 0 0 0 var(--crown-blue),
+    2px 0 0 0 var(--crown-blue);
+}
+
+.state-empty .water { opacity: 0.3; }
+
+.state-empty .bubble { display: none; }
+
+/* ════════════════════════════════════════
    REFILL ANIMATION
-   ══════════════════════════════════════════ */
+   ════════════════════════════════════════ */
 .refilling .pet-body {
   animation: refill-pop 0.5s ease-out;
 }
 
-/* ══════════════════════════════════════════
+.refilling .crown {
+  animation: crown-up 0.5s ease-out;
+}
+
+/* ════════════════════════════════════════
    KEYFRAMES
-   ══════════════════════════════════════════ */
+   ════════════════════════════════════════ */
 
-/* Idle float — full */
 @keyframes pet-float {
-  0%, 100% { transform: translate(-50%, -50%) translateY(0); }
-  50% { transform: translate(-50%, -50%) translateY(-2px); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
-/* Breathing — normal */
 @keyframes pet-breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); }
-  50% { transform: translate(-50%, -50%) scale(1.01); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
 }
 
-/* Shaking — thirsty */
 @keyframes pet-shake {
-  0%   { transform: translate(-50%, -50%) rotate(0deg); }
-  15%  { transform: translate(calc(-50% - 2px), -50%) rotate(-3deg); }
-  30%  { transform: translate(-50%, -50%) rotate(0deg); }
-  45%  { transform: translate(calc(-50% + 2px), -50%) rotate(3deg); }
-  60%  { transform: translate(-50%, -50%) rotate(0deg); }
-  100% { transform: translate(-50%, -50%) rotate(0deg); }
+  0%   { transform: rotate(0deg); }
+  15%  { transform: translateX(-2px) rotate(-3deg); }
+  30%  { transform: rotate(0deg); }
+  45%  { transform: translateX(2px) rotate(3deg); }
+  60%  { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
 }
 
-/* Empty glow pulse */
 @keyframes empty-glow {
   0%, 100% {
     filter: drop-shadow(0 0 0 transparent);
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 6px var(--empty-glow));
-    transform: translate(-50%, -50%) scale(1.02);
+    filter: drop-shadow(0 0 6px rgba(168, 208, 240, 0.5));
+    transform: scale(1.02);
   }
 }
 
-/* Sweat drop fall */
+@keyframes wave {
+  0% {
+    clip-path: polygon(
+      0% 60%, 8% 20%, 16% 60%, 24% 20%, 32% 60%, 40% 20%,
+      48% 60%, 56% 20%, 64% 60%, 72% 20%, 80% 60%, 88% 20%,
+      96% 60%, 100% 20%, 100% 100%, 0% 100%
+    );
+  }
+  50% {
+    clip-path: polygon(
+      0% 20%, 8% 60%, 16% 20%, 24% 60%, 32% 20%, 40% 60%,
+      48% 20%, 56% 60%, 64% 20%, 72% 60%, 80% 20%, 88% 60%,
+      96% 20%, 100% 60%, 100% 100%, 0% 100%
+    );
+  }
+}
+
+@keyframes bubble-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50% { opacity: 0.4; }
+  100% { transform: translateY(-18px) scale(0.5); opacity: 0; }
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
 @keyframes sweat-drop {
   0%   { transform: translateY(0); opacity: 0; }
   15%  { opacity: 0.9; }
   100% { transform: translateY(10px); opacity: 0; }
 }
 
-/* Zzz float */
 @keyframes zzz-float {
   0%   { transform: translateY(0); opacity: 0; }
   20%  { opacity: 0.7; }
   100% { transform: translateY(-10px); opacity: 0; }
 }
 
-/* Refill pop */
 @keyframes refill-pop {
   0%   { transform: scale(1); }
   30%  { transform: scale(1.12); }
@@ -432,21 +590,18 @@ button {
   100% { transform: scale(1); }
 }
 
-/* Water sparkle */
-@keyframes sparkle {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
+@keyframes crown-up {
+  0%   { transform: translateX(-50%) translateY(4px); }
+  50%  { transform: translateX(-50%) translateY(-2px); }
+  100% { transform: translateX(-50%) translateY(0); }
 }
 
-/* ══════════════════════════════════════════
+/* ════════════════════════════════════════
    CONTEXT MENU
-   ══════════════════════════════════════════ */
+   ════════════════════════════════════════ */
 .menu-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: auto;
-  cursor: default;
+  position: fixed; inset: 0;
+  z-index: 100; pointer-events: auto; cursor: default;
 }
 
 .context-menu {
@@ -457,123 +612,76 @@ button {
   padding: 4px 0;
   z-index: 101;
   image-rendering: pixelated;
-  image-rendering: -webkit-optimize-contrast;
   pointer-events: auto;
 }
 
 .menu-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 5px 10px;
-  color: var(--menu-text);
-  font-size: 7px;
-  text-align: left;
-  gap: 10px;
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%; padding: 5px 10px;
+  color: var(--menu-text); font-size: 7px; text-align: left; gap: 10px;
 }
 
-.menu-item:hover {
-  background: var(--menu-hover);
-}
+.menu-item:hover { background: var(--menu-hover); }
 
 .menu-sep {
-  height: 1px;
-  background: var(--menu-sep);
-  margin: 3px 6px;
+  height: 1px; background: var(--menu-sep); margin: 3px 6px;
 }
 
-/* ══════════════════════════════════════════
-   HUD (SIP confirmation overlay)
-   ══════════════════════════════════════════ */
-.hud-shell {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-}
+/* ════════════════════════════════════════
+   HUD
+   ════════════════════════════════════════ */
+.hud-shell { width: 100%; height: 100%; background: transparent; }
 
 .hud {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
   pointer-events: none;
   animation: hud-in 0.15s steps(2), hud-settle 1s steps(6);
 }
 
 .hud-scan {
-  position: absolute;
-  width: 200px;
-  height: 76px;
+  position: absolute; width: 200px; height: 76px;
   background:
     linear-gradient(90deg, transparent, rgba(168, 208, 240, 0.3), transparent),
     repeating-linear-gradient(0deg, rgba(168, 208, 240, 0.08) 0 2px, transparent 2px 8px);
-  opacity: 0;
-  transform: translateX(-80px);
+  opacity: 0; transform: translateX(-80px);
   animation: hud-scan 1s steps(8) forwards;
 }
 
 .hud-ring {
-  position: absolute;
-  width: 110px;
-  height: 110px;
+  position: absolute; width: 110px; height: 110px;
   border: 3px solid var(--hud-border);
   animation: hud-pulse 1s steps(6) forwards;
 }
 
 .hud-orbit {
-  position: absolute;
-  width: 140px;
-  height: 140px;
-  border: 2px dashed var(--pet-outline);
-  opacity: 0.5;
+  position: absolute; width: 140px; height: 140px;
+  border: 2px dashed var(--pet-outline); opacity: 0.5;
   animation: hud-spin 1s steps(8) forwards;
 }
 
 .hud-copy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 16px 20px;
-  background: var(--hud-bg);
-  border: 2px solid var(--hud-border);
-  color: var(--hud-text);
-  z-index: 1;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; padding: 16px 20px;
+  background: var(--hud-bg); border: 2px solid var(--hud-border);
+  color: var(--hud-text); z-index: 1;
 }
 
-.hud-copy strong {
-  font-size: 13px;
-  color: var(--hud-accent);
-}
+.hud-copy strong { font-size: 13px; color: var(--hud-accent); }
+.hud-copy span { color: var(--pet-outline); font-size: 7px; }
 
-.hud-copy span {
-  color: var(--pet-outline);
-  font-size: 7px;
-}
-
-/* HUD keyframes */
-@keyframes hud-in {
-  from { transform: scale(0.9); opacity: 0; }
-}
-
-@keyframes hud-settle {
-  0% { filter: saturate(1.3); }
-  100% { filter: saturate(1); }
-}
-
+@keyframes hud-in { from { transform: scale(0.9); opacity: 0; } }
+@keyframes hud-settle { 0% { filter: saturate(1.3); } 100% { filter: saturate(1); } }
 @keyframes hud-scan {
   0% { opacity: 0; transform: translateX(-80px); }
   15%, 75% { opacity: 0.5; }
   100% { opacity: 0; transform: translateX(80px); }
 }
-
 @keyframes hud-pulse {
   0% { transform: scale(0.85); opacity: 0; }
   35% { transform: scale(1.04); opacity: 1; }
   100% { transform: scale(1); opacity: 0.65; }
 }
-
 @keyframes hud-spin {
   0% { transform: rotate(0deg) scale(0.94); opacity: 0; }
   25% { opacity: 0.7; }
@@ -582,9 +690,7 @@ button {
 
 /* ── Accessibility ── */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

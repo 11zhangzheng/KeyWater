@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource/press-start-2p'
 import './styles.css'
@@ -34,7 +34,9 @@ function getPetState(progress: number): PetState {
 }
 
 /* ════════════════════════════════════════
-   Pet Component
+   Pet Component — 水蓝蓝
+   Round body, red goggles, blue crown,
+   feet, arms, bubbles, water fill
    ════════════════════════════════════════ */
 function Pet({
   progress,
@@ -45,8 +47,7 @@ function Pet({
   animationsEnabled: boolean
   isRefilling: boolean
 }) {
-  // progress = 0 → empty, 1 → full
-  // Water level is inverted: more typing = less water
+  // progress = 0 → full water, 1 → empty water
   const waterPercent = Math.round((1 - progress) * 100)
   const petState = getPetState(progress)
 
@@ -59,27 +60,57 @@ function Pet({
         !animationsEnabled ? 'no-anim' : ''
       ].filter(Boolean).join(' ')}
     >
-      <div className="pet-body">
-        {/* Water fill layer */}
-        <div
-          className="water"
-          style={{ height: `${waterPercent}%` }}
-        >
-          <div className="water-sparkle" style={{ left: '20%', bottom: '30%', animationDelay: '0s' }} />
-          <div className="water-sparkle" style={{ left: '60%', bottom: '50%', animationDelay: '1.5s' }} />
+      <div className="pet-anchor">
+        {/* Crown — water splash on top */}
+        <div className="crown">
+          <div className="crown-center" />
         </div>
 
-        {/* Face */}
-        <div className="face">
-          <div className="eye eye-l" />
-          <div className="eye eye-r" />
-          <div className={`mouth mouth-${petState === 'full' ? 'happy' : petState === 'thirsty' ? 'thirsty' : 'normal'}`} />
-          <div className="blush blush-l" />
-          <div className="blush blush-r" />
-          {/* Thirsty sweat */}
-          <div className="sweat" />
-          {/* Empty zzz */}
-          <div className="zzz">Z</div>
+        {/* Red goggles */}
+        <div className="goggles">
+          <div className="goggle-l" />
+          <div className="goggle-r" />
+          <div className="goggle-center" />
+        </div>
+
+        {/* Round body with water fill */}
+        <div className="pet-body">
+          {/* Water fill layer */}
+          <div
+            className="water"
+            style={{ height: `${waterPercent}%` }}
+          >
+            {/* Bubbles inside water */}
+            <div className="bubble bubble-1" />
+            <div className="bubble bubble-2" />
+            <div className="bubble bubble-3" />
+            {/* Sparkles */}
+            <div className="water-sparkle" style={{ left: '25%', bottom: '30%', animationDelay: '0s' }} />
+            <div className="water-sparkle" style={{ left: '60%', bottom: '50%', animationDelay: '2s' }} />
+          </div>
+
+          {/* Face */}
+          <div className="face">
+            <div className="eye eye-l" />
+            <div className="eye eye-r" />
+            <div className={`mouth mouth-${petState === 'full' ? 'happy' : petState === 'thirsty' ? 'thirsty' : 'normal'}`} />
+            <div className="blush blush-l" />
+            <div className="blush blush-r" />
+            <div className="sweat" />
+            <div className="zzz">Z</div>
+          </div>
+        </div>
+
+        {/* Small arms */}
+        <div className="arms">
+          <div className="arm arm-l" />
+          <div className="arm arm-r" />
+        </div>
+
+        {/* Feet */}
+        <div className="feet">
+          <div className="foot foot-l" />
+          <div className="foot foot-r" />
         </div>
       </div>
     </div>
@@ -87,7 +118,7 @@ function Pet({
 }
 
 /* ════════════════════════════════════════
-   HUD Component (SIP confirmation overlay)
+   HUD Component
    ════════════════════════════════════════ */
 function Hud({ amount }: { amount: number }) {
   const [countdown, setCountdown] = useState(3)
@@ -162,24 +193,20 @@ function App() {
   const [menuOpen, setMenuOpen] = useState<{ x: number; y: number } | null>(null)
   const [isRefilling, setIsRefilling] = useState(false)
 
-  // UI preferences
   const [animationsEnabled, setAnimationsEnabled] = useState(() => {
     return localStorage.getItem('hb-animations') !== 'off'
   })
 
   const hudOnly = new URLSearchParams(window.location.search).get('hud') === '1'
 
-  // Persist animation pref
   useEffect(() => {
     localStorage.setItem('hb-animations', animationsEnabled ? 'on' : 'off')
   }, [animationsEnabled])
 
-  // Apply animation class
   useEffect(() => {
     document.body.classList.toggle('no-anim', !animationsEnabled)
   }, [animationsEnabled])
 
-  // IPC state sync
   useEffect(() => {
     window.hydrabit.getState().then(setState)
     const offState = window.hydrabit.onState(setState)
@@ -187,7 +214,6 @@ function App() {
     return () => { offState(); offHud() }
   }, [])
 
-  // Keyboard handler
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (hudOpen && event.key === 'Enter') {
@@ -212,7 +238,6 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [hudOpen, hudOnly])
 
-  // Close menu on Escape
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (e: KeyboardEvent) => {
@@ -222,26 +247,22 @@ function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [menuOpen])
 
-  // Progress: 0 = no keys typed (full water), 1 = threshold reached (empty water)
   const progress = useMemo(() => {
     return Math.min(1, state.dailyStats.keyCount / state.settings.keyThreshold)
   }, [state.dailyStats.keyCount, state.settings.keyThreshold])
 
-  // Refill handler
   const handleRefill = useCallback(() => {
     setIsRefilling(true)
     window.hydrabit.confirmWater().then(setState)
     setTimeout(() => setIsRefilling(false), 600)
   }, [])
 
-  // Right-click handler
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setMenuOpen({ x: e.clientX, y: e.clientY })
   }, [])
 
-  // Context menu items
   const contextMenuItems: MenuItem[] = useMemo(() => [
     { label: '+ WATER', action: handleRefill },
     { label: '-' },
@@ -253,7 +274,6 @@ function App() {
     { label: 'QUIT', action: () => window.close() }
   ], [animationsEnabled, handleRefill])
 
-  // ── HUD-only mode ──
   if (hudOnly) {
     return (
       <main className="hud-shell">
@@ -262,7 +282,6 @@ function App() {
     )
   }
 
-  // ── Widget mode: just the pet ──
   return (
     <main className="widget-shell">
       <section
