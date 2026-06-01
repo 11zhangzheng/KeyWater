@@ -3,11 +3,28 @@ export type SupplementLog = {
   count: number
 }
 
+export type PetSize = 'small' | 'medium' | 'large'
+export type PositionPreset = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'free'
+export type ReminderMode = 'quiet' | 'standard' | 'lively'
+
 export type Settings = {
   keyThreshold: number
   sipAmountMl: number
   enableSupplements: boolean
   paused: boolean
+  autoLaunch: boolean
+  // New fields
+  dailyGoalMl: number
+  showHud: boolean
+  leakEffect: boolean
+  floatAnimation: boolean
+  hotkey: string
+  alwaysOnTop: boolean
+  lockPosition: boolean
+  transparentBg: boolean
+  petSize: PetSize
+  positionPreset: PositionPreset
+  reminderMode: ReminderMode
 }
 
 export type DailyStats = {
@@ -16,6 +33,13 @@ export type DailyStats = {
   waterMl: number
   keyCount: number
   supplements: SupplementLog[]
+}
+
+export type DailyHistory = {
+  date: string
+  waterCount: number
+  waterMl: number
+  goalMet: boolean
 }
 
 export type WidgetBounds = {
