@@ -11,6 +11,7 @@ const api = {
   addKeyPress: (): Promise<AppState> => ipcRenderer.invoke('hydrabit:add-key-press'),
   minimizeToTray: (): Promise<void> => ipcRenderer.invoke('hydrabit:minimize-to-tray'),
   quitApp: (): Promise<void> => ipcRenderer.invoke('hydrabit:quit-app'),
+  setMenuOpen: (open: boolean): Promise<void> => ipcRenderer.invoke('hydrabit:set-menu-open', open),
 
   // Window management
   setAlwaysOnTop: (flag: boolean): Promise<AppState> =>
@@ -48,6 +49,11 @@ const api = {
     const listener = () => callback()
     ipcRenderer.on('hydrabit:hud', listener)
     return () => ipcRenderer.removeListener('hydrabit:hud', listener)
+  },
+  onOpenDataPanel: (callback: () => void) => {
+    const listener = () => callback()
+    ipcRenderer.on('hydrabit:open-data-panel', listener)
+    return () => ipcRenderer.removeListener('hydrabit:open-data-panel', listener)
   }
 }
 

@@ -12449,6 +12449,308 @@ function requireClient() {
   return client.exports;
 }
 var clientExports = requireClient();
+const MENU_GAP = 8;
+const VIEWPORT_MARGIN = 8;
+const MIN_MENU_HEIGHT = 96;
+const MAX_MENU_HEIGHT = 320;
+const MAX_SCREEN_HEIGHT_RATIO = 0.6;
+const getMenuMaxHeight = (screenHeight, viewportHeight) => {
+  const screenLimit = Math.floor(Math.min(MAX_MENU_HEIGHT, screenHeight * MAX_SCREEN_HEIGHT_RATIO));
+  const viewportLimit = Math.max(MIN_MENU_HEIGHT, viewportHeight - VIEWPORT_MARGIN * 2);
+  return Math.min(screenLimit, viewportLimit);
+};
+const calculateMenuLayout = ({
+  anchorRect,
+  menuWidth,
+  menuHeight,
+  viewportWidth,
+  viewportHeight,
+  screenHeight
+}) => {
+  const maxHeight = getMenuMaxHeight(screenHeight, viewportHeight);
+  const height = Math.min(menuHeight, maxHeight);
+  let placement = "top-left";
+  let left = anchorRect.left - menuWidth - MENU_GAP;
+  let top = anchorRect.top - height - MENU_GAP;
+  if (left < VIEWPORT_MARGIN) {
+    left = anchorRect.right + MENU_GAP;
+    placement = "top-right";
+  }
+  if (left + menuWidth > viewportWidth - VIEWPORT_MARGIN) {
+    left = viewportWidth - menuWidth - VIEWPORT_MARGIN;
+  }
+  if (top < VIEWPORT_MARGIN) {
+    top = anchorRect.bottom + MENU_GAP;
+    placement = placement === "top-left" ? "bottom-left" : "bottom-right";
+  }
+  if (top + height > viewportHeight - VIEWPORT_MARGIN) {
+    top = Math.max(VIEWPORT_MARGIN, viewportHeight - height - VIEWPORT_MARGIN);
+  }
+  return {
+    left: Math.round(left),
+    top: Math.round(top),
+    maxHeight,
+    placement
+  };
+};
+const SIP_PRESETS = [150, 200, 250, 300, 500];
+const REMINDER_PRESETS = [
+  { label: "轻", threshold: 3e3 },
+  { label: "标准", threshold: 2e3 },
+  { label: "频繁", threshold: 1e3 }
+];
+const getReminderLabel = (threshold) => {
+  return REMINDER_PRESETS.find((preset) => preset.threshold === threshold)?.label ?? "自定义";
+};
+const initialLayout = {
+  left: 8,
+  top: 8,
+  maxHeight: 320,
+  placement: "top-left"
+};
+function PetMenu({
+  state,
+  anchorRect,
+  menuRef,
+  onRefill,
+  onOpenData,
+  onMinimize,
+  onQuit
+}) {
+  const [expandSip, setExpandSip] = reactExports.useState(false);
+  const [expandReminder, setExpandReminder] = reactExports.useState(false);
+  const [layout, setLayout] = reactExports.useState(initialLayout);
+  const currentSip = state.settings.sipAmountMl;
+  const currentThreshold = state.settings.keyThreshold;
+  const isPaused = state.settings.paused;
+  reactExports.useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu || !anchorRect) return;
+    setLayout(calculateMenuLayout({
+      anchorRect,
+      menuWidth: Math.min(220, Math.max(180, menu.offsetWidth || 210)),
+      menuHeight: menu.scrollHeight,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      screenHeight: window.screen.availHeight
+    }));
+  }, [anchorRect, currentSip, currentThreshold, expandReminder, expandSip, menuRef]);
+  const updateSip = (ml) => {
+    window.hydrabit.updateSettings({ sipAmountMl: ml });
+    setExpandSip(false);
+  };
+  const updateCustomSip = () => {
+    const input = window.prompt("自定义饮水量 (ml)", String(currentSip));
+    const value = Number.parseInt(input ?? "", 10);
+    if (Number.isFinite(value) && value > 0 && value <= 2e3) {
+      updateSip(value);
+    }
+  };
+  const updateReminder = (threshold) => {
+    window.hydrabit.updateSettings({ keyThreshold: threshold });
+    setExpandReminder(false);
+  };
+  const updateCustomReminder = () => {
+    const input = window.prompt("自定义按键阈值", String(currentThreshold));
+    const value = Number.parseInt(input ?? "", 10);
+    if (Number.isFinite(value) && value > 0 && value <= 5e4) {
+      updateReminder(value);
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-overlay strict-menu-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs(
+    "div",
+    {
+      ref: menuRef,
+      className: `pet-menu strict-menu placement-${layout.placement}`,
+      style: { left: layout.left, top: layout.top, maxHeight: layout.maxHeight },
+      children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-arrow", "aria-hidden": "true" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu-scroll", style: { maxHeight: layout.maxHeight - 16 }, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item pet-menu-primary", onClick: onRefill, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-drop", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "喝一口" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pet-menu-right", children: [
+              "+",
+              currentSip,
+              "ml"
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              className: "pet-menu-item",
+              onClick: () => {
+                setExpandSip((value) => !value);
+                setExpandReminder(false);
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-cup", "aria-hidden": "true" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "饮水量" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pet-menu-right", children: [
+                  currentSip,
+                  "ml ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-chevron", children: "›" })
+                ] })
+              ]
+            }
+          ),
+          expandSip && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu-options", children: [
+            SIP_PRESETS.map((ml) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
+              "button",
+              {
+                type: "button",
+                className: `pet-menu-option ${ml === currentSip ? "active" : ""}`,
+                onClick: () => updateSip(ml),
+                children: [
+                  ml,
+                  "ml"
+                ]
+              },
+              ml
+            )),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "pet-menu-option", onClick: updateCustomSip, children: "自定义" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(
+            "button",
+            {
+              type: "button",
+              className: "pet-menu-item",
+              onClick: () => {
+                setExpandReminder((value) => !value);
+                setExpandSip(false);
+              },
+              children: [
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-bell", "aria-hidden": "true" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "提醒强度" }),
+                /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pet-menu-right", children: [
+                  getReminderLabel(currentThreshold),
+                  " ",
+                  /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-chevron", children: "›" })
+                ] })
+              ]
+            }
+          ),
+          expandReminder && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu-options", children: [
+            REMINDER_PRESETS.map((preset) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+              "button",
+              {
+                type: "button",
+                className: `pet-menu-option ${preset.threshold === currentThreshold ? "active" : ""}`,
+                onClick: () => updateReminder(preset.threshold),
+                children: preset.label
+              },
+              preset.threshold
+            )),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "pet-menu-option", onClick: updateCustomReminder, children: "自定义" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: () => window.hydrabit.updateSettings({ paused: !isPaused }), children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-pause", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: isPaused ? "恢复" : "暂停" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-right" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: onMinimize, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-window", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "最小化" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-right" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: onOpenData, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-data", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "数据" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-right" })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item pet-menu-danger", onClick: onQuit, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-close", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: "关闭" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-right" })
+          ] })
+        ] })
+      ]
+    }
+  ) });
+}
+const shortWeekday = (dateKey) => {
+  const date = /* @__PURE__ */ new Date(`${dateKey}T00:00:00`);
+  return new Intl.DateTimeFormat("zh-CN", { weekday: "short" }).format(date).replace("周", "");
+};
+const getLastSevenDays = () => {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = /* @__PURE__ */ new Date();
+    date.setDate(date.getDate() - (6 - index));
+    return date.toISOString().slice(0, 10);
+  });
+};
+function DataPanel({ state, panelRef, onClose }) {
+  const [history, setHistory] = reactExports.useState({ days: [], streak: 0 });
+  reactExports.useEffect(() => {
+    window.hydrabit.getHistory().then(setHistory);
+  }, [state.dailyStats.waterCount, state.dailyStats.waterMl]);
+  const progress = Math.min(100, Math.round(state.dailyStats.waterMl / state.settings.dailyGoalMl * 100));
+  const recentLogs = [...state.dailyStats.waterLogs ?? []].slice(-5).reverse();
+  const chartDays = reactExports.useMemo(() => {
+    const byDate = new Map(history.days.map((day) => [day.date, day]));
+    return getLastSevenDays().map((date) => ({
+      date,
+      waterMl: byDate.get(date)?.waterMl ?? (date === state.dailyStats.date ? state.dailyStats.waterMl : 0)
+    }));
+  }, [history.days, state.dailyStats.date, state.dailyStats.waterMl]);
+  const maxMl = Math.max(state.settings.dailyGoalMl, ...chartDays.map((day) => day.waterMl), 1);
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-overlay", children: /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { ref: panelRef, className: "data-panel", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "data-header", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "饮水数据" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "data-close", onClick: onClose, children: "×" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "data-section", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-section-title", children: "今日饮水概览" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "data-summary", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "已喝" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+            state.dailyStats.waterMl,
+            "ml"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "次数" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+            state.dailyStats.waterCount,
+            " 次"
+          ] })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "目标" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+            state.settings.dailyGoalMl,
+            "ml"
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-waterbar", "aria-label": `今日完成 ${progress}%`, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-waterbar-fill", style: { width: `${progress}%` } }) })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "data-section", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-section-title", children: "最近记录" }),
+      recentLogs.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-log-list", children: recentLogs.map((log, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "data-log-row", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: log.time }),
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+          "+",
+          log.amountMl,
+          "ml"
+        ] })
+      ] }, `${log.time}-${index}`)) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-empty", children: "今天还没有喝水" })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "data-section", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-section-title", children: "最近 7 天" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-bars", children: chartDays.map((day) => {
+        const isToday = day.date === state.dailyStats.date;
+        const height = Math.max(4, Math.round(day.waterMl / maxMl * 68));
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `data-bar-day ${isToday ? "today" : ""}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-bar-track", children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "data-bar-fill", style: { height } }) }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: shortWeekday(day.date) })
+        ] }, day.date);
+      }) })
+    ] })
+  ] }) });
+}
 const fallbackState = {
   settings: {
     keyThreshold: 2e3,
@@ -12473,6 +12775,7 @@ const fallbackState = {
     waterCount: 0,
     waterMl: 0,
     keyCount: 0,
+    waterLogs: [],
     supplements: []
   },
   thirsty: false,
@@ -12483,16 +12786,6 @@ function getPetState(progress) {
   if (progress >= 0.8) return "thirsty";
   if (progress >= 0.4) return "normal";
   return "full";
-}
-const REMINDER_PRESETS = [
-  { label: "轻", threshold: 3e3 },
-  { label: "标准", threshold: 2e3 },
-  { label: "频繁", threshold: 1e3 }
-];
-const SIP_PRESETS = [150, 200, 250, 300, 500];
-const HOTKEY_PLATFORM = navigator.platform.includes("Mac") ? "Cmd" : "Ctrl";
-function formatHotkey(accelerator) {
-  return accelerator.replace("CommandOrControl", HOTKEY_PLATFORM).replace("Command", "Cmd").replace("Control", "Ctrl").replace("Shift", "Shift").replace("Alt", "Alt").replace("+", " + ");
 }
 function Pet({
   progress,
@@ -12586,646 +12879,21 @@ function Hud({ amount }) {
     ] })
   ] });
 }
-function PetMenu({
-  state,
-  onRefill,
-  onOpenSettings,
-  onClose,
-  onMinimize,
-  onQuit,
-  animationsEnabled,
-  onToggleAnimations
-}) {
-  const [expandSip, setExpandSip] = reactExports.useState(false);
-  const [expandReminder, setExpandReminder] = reactExports.useState(false);
-  const currentSip = state.settings.sipAmountMl;
-  const currentThreshold = state.settings.keyThreshold;
-  const isPaused = state.settings.paused;
-  const reminderLabel = REMINDER_PRESETS.find((p) => p.threshold === currentThreshold)?.label ?? "自定义";
-  const handleSipChange = (ml) => {
-    window.hydrabit.updateSettings({ sipAmountMl: ml });
-    setExpandSip(false);
-  };
-  const handleCustomSip = () => {
-    const input = window.prompt("输入饮水量 (ml)", String(currentSip));
-    if (input) {
-      const val = parseInt(input, 10);
-      if (val > 0 && val <= 2e3) {
-        window.hydrabit.updateSettings({ sipAmountMl: val });
-      }
-    }
-    setExpandSip(false);
-  };
-  const handleReminderChange = (threshold) => {
-    window.hydrabit.updateSettings({ keyThreshold: threshold });
-    setExpandReminder(false);
-  };
-  const handleCustomReminder = () => {
-    const input = window.prompt("输入按键阈值", String(currentThreshold));
-    if (input) {
-      const val = parseInt(input, 10);
-      if (val > 0 && val <= 5e4) {
-        window.hydrabit.updateSettings({ keyThreshold: val });
-      }
-    }
-    setExpandReminder(false);
-  };
-  const handleTogglePause = () => {
-    window.hydrabit.updateSettings({ paused: !isPaused });
-  };
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-overlay", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu", onClick: (e) => e.stopPropagation(), children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-arrow" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item pet-menu-primary", onClick: () => {
-      onRefill();
-      onClose();
-    }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "💧" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "喝一口" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-sep" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "button",
-      {
-        type: "button",
-        className: "pet-menu-item",
-        onClick: () => {
-          setExpandSip(!expandSip);
-          setExpandReminder(false);
-        },
-        children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "🫗" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "饮水量" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "pet-menu-badge", children: [
-            currentSip,
-            "ml"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pet-menu-arrow-r ${expandSip ? "open" : ""}`, children: "▸" })
-        ]
-      }
-    ),
-    expandSip && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu-sub", children: [
-      SIP_PRESETS.map((ml) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          type: "button",
-          className: `pet-menu-sub-item ${ml === currentSip ? "active" : ""}`,
-          onClick: () => handleSipChange(ml),
-          children: [
-            ml,
-            "ml"
-          ]
-        },
-        ml
-      )),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "pet-menu-sub-item", onClick: handleCustomSip, children: "自定义..." })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "button",
-      {
-        type: "button",
-        className: "pet-menu-item",
-        onClick: () => {
-          setExpandReminder(!expandReminder);
-          setExpandSip(false);
-        },
-        children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "⏱" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "提醒" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-badge", children: reminderLabel }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `pet-menu-arrow-r ${expandReminder ? "open" : ""}`, children: "▸" })
-        ]
-      }
-    ),
-    expandReminder && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "pet-menu-sub", children: [
-      REMINDER_PRESETS.map((p) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-        "button",
-        {
-          type: "button",
-          className: `pet-menu-sub-item ${p.threshold === currentThreshold ? "active" : ""}`,
-          onClick: () => handleReminderChange(p.threshold),
-          children: [
-            p.label,
-            " (",
-            p.threshold,
-            "次)"
-          ]
-        },
-        p.threshold
-      )),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "pet-menu-sub-item", onClick: handleCustomReminder, children: "自定义..." })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-sep" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: handleTogglePause, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: isPaused ? "▶" : "⏸" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: isPaused ? "恢复" : "暂停" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: onToggleAnimations, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "✨" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-        "动画: ",
-        animationsEnabled ? "开" : "关"
-      ] })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "pet-menu-sep" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: () => {
-      onOpenSettings();
-      onClose();
-    }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "⚙" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "详细设置" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: () => {
-      onMinimize();
-      onClose();
-    }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "📦" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "最小化" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item pet-menu-danger", onClick: () => {
-      onQuit();
-      onClose();
-    }, children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon", children: "✕" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "关闭" })
-    ] })
-  ] }) });
-}
-function SettingsPanel({
-  state,
-  onClose,
-  animationsEnabled,
-  onToggleAnimations
-}) {
-  const [activeTab, setActiveTab] = reactExports.useState("basic");
-  const [sipInput, setSipInput] = reactExports.useState(String(state.settings.sipAmountMl));
-  const [goalInput, setGoalInput] = reactExports.useState(String(state.settings.dailyGoalMl));
-  const [thresholdInput, setThresholdInput] = reactExports.useState(String(state.settings.keyThreshold));
-  const [historyData, setHistoryData] = reactExports.useState({ days: [], streak: 0 });
-  const [confirmClear, setConfirmClear] = reactExports.useState(false);
-  const [confirmReset, setConfirmReset] = reactExports.useState(false);
-  const [hotkeyRecording, setHotkeyRecording] = reactExports.useState(false);
-  const [hotkeyError, setHotkeyError] = reactExports.useState("");
-  reactExports.useEffect(() => {
-    setSipInput(String(state.settings.sipAmountMl));
-    setGoalInput(String(state.settings.dailyGoalMl));
-    setThresholdInput(String(state.settings.keyThreshold));
-  }, [state.settings.sipAmountMl, state.settings.dailyGoalMl, state.settings.keyThreshold]);
-  reactExports.useEffect(() => {
-    if (activeTab === "data") {
-      window.hydrabit.getHistory().then(setHistoryData);
-    }
-  }, [activeTab]);
-  reactExports.useEffect(() => {
-    if (!hotkeyRecording) return;
-    const handler = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const parts = [];
-      if (e.metaKey || e.ctrlKey) parts.push("CommandOrControl");
-      if (e.altKey) parts.push("Alt");
-      if (e.shiftKey) parts.push("Shift");
-      const key = e.key;
-      if (["Control", "Shift", "Alt", "Meta"].includes(key)) return;
-      const keyMap = {
-        "Control": "",
-        "Shift": "",
-        "Alt": "",
-        "Meta": "",
-        " ": "Space",
-        "ArrowUp": "Up",
-        "ArrowDown": "Down",
-        "ArrowLeft": "Left",
-        "ArrowRight": "Right",
-        "Escape": "",
-        "Enter": "Enter",
-        "Backspace": "Backspace",
-        "Delete": "Delete",
-        "Tab": "Tab"
-      };
-      const mapped = keyMap[key] ?? key.toUpperCase();
-      if (parts.length === 0 || !mapped) {
-        setHotkeyError("请至少按一个修饰键 (Ctrl/Cmd/Alt/Shift)");
-        return;
-      }
-      const accelerator = [...parts, mapped].join("+");
-      window.hydrabit.testHotkey(accelerator).then((result) => {
-        if (result.ok) {
-          window.hydrabit.setHotkey(accelerator).then((res) => {
-            if (res.ok) {
-              setHotkeyRecording(false);
-              setHotkeyError("");
-            } else {
-              setHotkeyError(res.error ?? "注册失败");
-            }
-          });
-        } else {
-          setHotkeyError(result.error ?? "快捷键冲突");
-        }
-      });
-    };
-    window.addEventListener("keydown", handler, true);
-    return () => window.removeEventListener("keydown", handler, true);
-  }, [hotkeyRecording]);
-  const handleSaveSip = () => {
-    const val = parseInt(sipInput, 10);
-    if (val > 0 && val <= 2e3) {
-      window.hydrabit.updateSettings({ sipAmountMl: val });
-    }
-  };
-  const handleSaveGoal = () => {
-    const val = parseInt(goalInput, 10);
-    if (val > 0 && val <= 1e4) {
-      window.hydrabit.updateSettings({ dailyGoalMl: val });
-    }
-  };
-  const handleSaveThreshold = () => {
-    const val = parseInt(thresholdInput, 10);
-    if (val > 0 && val <= 5e4) {
-      window.hydrabit.updateSettings({ keyThreshold: val });
-    }
-  };
-  const handleClearToday = () => {
-    window.hydrabit.clearToday().then(() => {
-      setConfirmClear(false);
-      window.hydrabit.getState().then(() => {
-      });
-    });
-  };
-  const handleResetAll = () => {
-    window.hydrabit.resetAll().then(() => {
-      setConfirmReset(false);
-      onToggleAnimations();
-    });
-  };
-  const tabs = [
-    { key: "basic", label: "基础", icon: "🔧" },
-    { key: "hotkey", label: "快捷键", icon: "⌨" },
-    { key: "display", label: "桌宠", icon: "🐾" },
-    { key: "reminder", label: "提醒", icon: "🔔" },
-    { key: "data", label: "数据", icon: "📊" }
-  ];
-  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-overlay", onClick: onClose, children: /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-panel", onClick: (e) => e.stopPropagation(), children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-header", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "⚙ 设置" }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "settings-close", onClick: onClose, children: "✕" })
-    ] }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-tabs", children: tabs.map((t) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-      "button",
-      {
-        type: "button",
-        className: `settings-tab ${activeTab === t.key ? "active" : ""}`,
-        onClick: () => setActiveTab(t.key),
-        children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-tab-icon", children: t.icon }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: t.label })
-        ]
-      },
-      t.key
-    )) }),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-body", children: [
-      activeTab === "basic" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "每次饮水量" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-input-group", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "settings-input",
-                type: "number",
-                min: 1,
-                max: 2e3,
-                value: sipInput,
-                placeholder: "ml",
-                title: "每次饮水量 (ml)",
-                onChange: (e) => setSipInput(e.target.value),
-                onBlur: handleSaveSip
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-unit", children: "ml" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "每日目标" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-input-group", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "settings-input",
-                type: "number",
-                min: 1,
-                max: 1e4,
-                value: goalInput,
-                placeholder: "ml",
-                title: "每日目标饮水量 (ml)",
-                onChange: (e) => setGoalInput(e.target.value),
-                onBlur: handleSaveGoal
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-unit", children: "ml" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "耗水阈值" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-input-group", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx(
-              "input",
-              {
-                className: "settings-input",
-                type: "number",
-                min: 1,
-                max: 5e4,
-                value: thresholdInput,
-                placeholder: "次",
-                title: "打字耗水阈值 (次按键)",
-                onChange: (e) => setThresholdInput(e.target.value),
-                onBlur: handleSaveThreshold
-              }
-            ),
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-unit", children: "次" })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "补水 HUD" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.showHud ? "on" : "off"}`,
-              onClick: () => window.hydrabit.updateSettings({ showHud: !state.settings.showHud }),
-              children: state.settings.showHud ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "漏水特效" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.leakEffect ? "on" : "off"}`,
-              onClick: () => window.hydrabit.updateSettings({ leakEffect: !state.settings.leakEffect }),
-              children: state.settings.leakEffect ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "浮动动画" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.floatAnimation ? "on" : "off"}`,
-              onClick: () => {
-                window.hydrabit.updateSettings({ floatAnimation: !state.settings.floatAnimation });
-                onToggleAnimations();
-              },
-              children: state.settings.floatAnimation ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "动画效果" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${animationsEnabled ? "on" : "off"}`,
-              onClick: onToggleAnimations,
-              children: animationsEnabled ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "开机启动" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.autoLaunch ? "on" : "off"}`,
-              onClick: () => window.hydrabit.updateSettings({ autoLaunch: !state.settings.autoLaunch }),
-              children: state.settings.autoLaunch ? "ON" : "OFF"
-            }
-          )
-        ] })
-      ] }),
-      activeTab === "hotkey" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hint", children: "当前快捷键" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hotkey-display", children: formatHotkey(state.settings.hotkey) }),
-        !hotkeyRecording ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            className: "settings-hotkey-record",
-            onClick: () => {
-              setHotkeyRecording(true);
-              setHotkeyError("");
-            },
-            children: "点击录制新快捷键"
-          }
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-hotkey-active", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hotkey-pulse" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "请按下快捷键组合..." }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: "settings-hotkey-cancel",
-              onClick: () => {
-                setHotkeyRecording(false);
-                setHotkeyError("");
-              },
-              children: "取消"
-            }
-          )
-        ] }),
-        hotkeyError && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hotkey-error", children: hotkeyError }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-hint", children: [
-          "默认: ",
-          HOTKEY_PLATFORM,
-          " + Shift + W"
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hint", style: { marginTop: "4px" }, children: "快捷键在任何应用中都可触发补水。" })
-      ] }),
-      activeTab === "display" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "始终置顶" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.alwaysOnTop ? "on" : "off"}`,
-              onClick: () => window.hydrabit.setAlwaysOnTop(!state.settings.alwaysOnTop),
-              children: state.settings.alwaysOnTop ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "锁定位置" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.lockPosition ? "on" : "off"}`,
-              onClick: () => window.hydrabit.setLockPosition(!state.settings.lockPosition),
-              children: state.settings.lockPosition ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("label", { className: "settings-label", children: "透明背景" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx(
-            "button",
-            {
-              type: "button",
-              className: `settings-toggle ${state.settings.transparentBg ? "on" : "off"}`,
-              onClick: () => window.hydrabit.setTransparentBg(!state.settings.transparentBg),
-              children: state.settings.transparentBg ? "ON" : "OFF"
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-group-label", children: "桌宠尺寸" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-radio-group", children: ["small", "medium", "large"].map((size) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            className: `settings-radio ${state.settings.petSize === size ? "active" : ""}`,
-            onClick: () => window.hydrabit.setPetSize(size),
-            children: size === "small" ? "小" : size === "medium" ? "中" : "大"
-          },
-          size
-        )) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-group-label", children: "显示位置" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-radio-group settings-radio-grid", children: [
-          { key: "top-left", label: "↖" },
-          { key: "top-right", label: "↗" },
-          { key: "bottom-left", label: "↙" },
-          { key: "bottom-right", label: "↘" },
-          { key: "free", label: "自由" }
-        ].map((p) => /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            className: `settings-radio ${state.settings.positionPreset === p.key ? "active" : ""}`,
-            onClick: () => window.hydrabit.setPosition(p.key),
-            children: p.label
-          },
-          p.key
-        )) })
-      ] }),
-      activeTab === "reminder" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-group-label", children: "提醒方式" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-mode-list", children: [
-          { key: "quiet", label: "安静模式", desc: "只改变水量，不抖动" },
-          { key: "standard", label: "标准模式", desc: "低水量时轻微漏水和晃动" },
-          { key: "lively", label: "活泼模式", desc: "更多气泡、抖动和小特效" }
-        ].map((m) => /* @__PURE__ */ jsxRuntimeExports.jsxs(
-          "button",
-          {
-            type: "button",
-            className: `settings-mode-item ${state.settings.reminderMode === m.key ? "active" : ""}`,
-            onClick: () => window.hydrabit.updateSettings({ reminderMode: m.key }),
-            children: [
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-mode-dot" }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-mode-label", children: m.label }),
-              /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-mode-desc", children: m.desc })
-            ]
-          },
-          m.key
-        )) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hint", children: "所有模式都不会使用系统弹窗通知。" })
-      ] }),
-      activeTab === "data" && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-section", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-stats", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-stat", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "今日已喝" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-              state.dailyStats.waterMl,
-              " ml"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-stat", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "饮水次数" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-              state.dailyStats.waterCount,
-              " 次"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-stat", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "目标进度" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-              Math.min(100, Math.round(state.dailyStats.waterMl / state.settings.dailyGoalMl * 100)),
-              "%"
-            ] })
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-stat", children: [
-            /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "连续达标" }),
-            /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
-              historyData.streak,
-              " 天"
-            ] })
-          ] })
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-group-label", children: "最近 7 天" }),
-        historyData.days.length > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-history", children: historyData.days.map((day) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-history-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-history-date", children: day.date.slice(5) }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "settings-history-ml", children: [
-            day.waterMl,
-            "ml"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { className: "settings-history-count", children: [
-            day.waterCount,
-            "次"
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: `settings-history-goal ${day.goalMet ? "met" : ""}`, children: day.goalMet ? "✓" : "✗" })
-        ] }, day.date)) }) : /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-hint", children: "暂无历史记录" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-divider" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-action-row", children: !confirmClear ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            className: "settings-action-btn",
-            onClick: () => setConfirmClear(true),
-            children: "清除今日记录"
-          }
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-confirm-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-confirm-text", children: "确定清除？" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "settings-confirm-yes", onClick: handleClearToday, children: "确定" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "settings-confirm-no", onClick: () => setConfirmClear(false), children: "取消" })
-        ] }) }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "settings-action-row", children: !confirmReset ? /* @__PURE__ */ jsxRuntimeExports.jsx(
-          "button",
-          {
-            type: "button",
-            className: "settings-action-btn settings-danger",
-            onClick: () => setConfirmReset(true),
-            children: "重置全部数据"
-          }
-        ) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "settings-confirm-row", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "settings-confirm-text", children: "不可恢复！" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "settings-confirm-yes settings-danger", onClick: handleResetAll, children: "确定重置" }),
-          /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "settings-confirm-no", onClick: () => setConfirmReset(false), children: "取消" })
-        ] }) })
-      ] })
-    ] })
-  ] }) });
-}
 function App() {
   const [state, setState] = reactExports.useState(fallbackState);
   const [hudOpen, setHudOpen] = reactExports.useState(false);
   const [petMenuOpen, setPetMenuOpen] = reactExports.useState(false);
-  const [settingsOpen, setSettingsOpen] = reactExports.useState(false);
+  const [dataPanelOpen, setDataPanelOpen] = reactExports.useState(false);
   const [isRefilling, setIsRefilling] = reactExports.useState(false);
   const [animationsEnabled, setAnimationsEnabled] = reactExports.useState(() => {
     return localStorage.getItem("hb-animations") !== "off";
   });
   const hudOnly = new URLSearchParams(window.location.search).get("hud") === "1";
   const mouseDownRef = reactExports.useRef(null);
+  const petHitboxRef = reactExports.useRef(null);
+  const petMenuRef = reactExports.useRef(null);
+  const dataPanelRef = reactExports.useRef(null);
+  const [menuAnchorRect, setMenuAnchorRect] = reactExports.useState(null);
   reactExports.useEffect(() => {
     localStorage.setItem("hb-animations", animationsEnabled ? "on" : "off");
   }, [animationsEnabled]);
@@ -13236,9 +12904,14 @@ function App() {
     window.hydrabit.getState().then(setState);
     const offState = window.hydrabit.onState(setState);
     const offHud = window.hydrabit.onHud(() => setHudOpen(true));
+    const offOpenDataPanel = window.hydrabit.onOpenDataPanel(() => {
+      setPetMenuOpen(false);
+      setDataPanelOpen(true);
+    });
     return () => {
       offState();
       offHud();
+      offOpenDataPanel();
     };
   }, []);
   reactExports.useEffect(() => {
@@ -13265,16 +12938,53 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [hudOpen, hudOnly]);
   reactExports.useEffect(() => {
-    if (!petMenuOpen && !settingsOpen) return;
+    if (!petMenuOpen && !dataPanelOpen) return;
     const onKey = (e) => {
       if (e.key === "Escape") {
         setPetMenuOpen(false);
-        setSettingsOpen(false);
+        setDataPanelOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [petMenuOpen, settingsOpen]);
+  }, [petMenuOpen, dataPanelOpen]);
+  reactExports.useEffect(() => {
+    if (!petMenuOpen) return;
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (petMenuRef.current?.contains(target)) return;
+      if (petHitboxRef.current?.contains(target)) return;
+      setPetMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [petMenuOpen]);
+  reactExports.useEffect(() => {
+    if (!dataPanelOpen) return;
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (dataPanelRef.current?.contains(target)) return;
+      if (petHitboxRef.current?.contains(target)) return;
+      setDataPanelOpen(false);
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [dataPanelOpen]);
+  reactExports.useEffect(() => {
+    if (!petMenuOpen) return;
+    const updateAnchor = () => {
+      setMenuAnchorRect(petHitboxRef.current?.getBoundingClientRect() ?? null);
+    };
+    updateAnchor();
+    window.addEventListener("resize", updateAnchor);
+    return () => window.removeEventListener("resize", updateAnchor);
+  }, [petMenuOpen]);
+  reactExports.useEffect(() => {
+    if (hudOnly) return;
+    window.hydrabit.setMenuOpen(petMenuOpen || dataPanelOpen);
+  }, [hudOnly, petMenuOpen, dataPanelOpen]);
   const progress = reactExports.useMemo(() => {
     return Math.min(1, state.dailyStats.keyCount / state.settings.keyThreshold);
   }, [state.dailyStats.keyCount, state.settings.keyThreshold]);
@@ -13282,9 +12992,6 @@ function App() {
     setIsRefilling(true);
     window.hydrabit.confirmWater().then(setState);
     setTimeout(() => setIsRefilling(false), 600);
-  }, []);
-  const handleToggleAnimations = reactExports.useCallback(() => {
-    setAnimationsEnabled((v) => !v);
   }, []);
   const handleMinimize = reactExports.useCallback(() => {
     window.hydrabit.minimizeToTray();
@@ -13306,10 +13013,15 @@ function App() {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const elapsed = Date.now() - down.time;
     if (dist < 5 && elapsed < 300) {
-      setPetMenuOpen((v) => !v);
-      setSettingsOpen(false);
+      if (petMenuOpen) {
+        setPetMenuOpen(false);
+      } else {
+        setMenuAnchorRect(petHitboxRef.current?.getBoundingClientRect() ?? null);
+        setPetMenuOpen(true);
+      }
+      setDataPanelOpen(false);
     }
-  }, []);
+  }, [petMenuOpen]);
   if (hudOnly) {
     return /* @__PURE__ */ jsxRuntimeExports.jsx("main", { className: "hud-shell", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Hud, { amount: state.settings.sipAmountMl }) });
   }
@@ -13317,9 +13029,10 @@ function App() {
     /* @__PURE__ */ jsxRuntimeExports.jsx("section", { className: `widget ${!animationsEnabled ? "no-anim" : ""}`, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
       "div",
       {
+        ref: petHitboxRef,
         onMouseDown: handlePetMouseDown,
         onMouseUp: handlePetMouseUp,
-        style: { pointerEvents: "auto", width: "100%", height: "100%" },
+        className: "pet-hitbox",
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(
           Pet,
           {
@@ -13338,22 +13051,29 @@ function App() {
       PetMenu,
       {
         state,
-        onRefill: handleRefill,
-        onOpenSettings: () => setSettingsOpen(true),
-        onClose: () => setPetMenuOpen(false),
-        onMinimize: handleMinimize,
-        onQuit: handleQuit,
-        animationsEnabled,
-        onToggleAnimations: handleToggleAnimations
+        anchorRect: menuAnchorRect,
+        menuRef: petMenuRef,
+        onRefill: () => {
+          handleRefill();
+          setPetMenuOpen(false);
+        },
+        onOpenData: () => {
+          setDataPanelOpen(true);
+          setPetMenuOpen(false);
+        },
+        onMinimize: () => {
+          handleMinimize();
+          setPetMenuOpen(false);
+        },
+        onQuit: handleQuit
       }
     ),
-    settingsOpen && /* @__PURE__ */ jsxRuntimeExports.jsx(
-      SettingsPanel,
+    dataPanelOpen && /* @__PURE__ */ jsxRuntimeExports.jsx(
+      DataPanel,
       {
         state,
-        onClose: () => setSettingsOpen(false),
-        animationsEnabled,
-        onToggleAnimations: handleToggleAnimations
+        panelRef: dataPanelRef,
+        onClose: () => setDataPanelOpen(false)
       }
     )
   ] });

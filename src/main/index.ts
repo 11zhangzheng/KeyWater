@@ -1,7 +1,16 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, type MenuItemConstructorOptions } from 'electron'
 import { dirname, join } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import type { AppState, DailyStats, DailyHistory, Settings, WidgetBounds, PetSize, PositionPreset } from '../shared/types'
+import {
+  PET_SIZES,
+  clampWidgetBounds as calculateClampedWidgetBounds,
+  getDefaultWidgetBounds as calculateDefaultWidgetBounds,
+  getDisplayForBounds as calculateDisplayForBounds,
+  getMenuWidgetBounds,
+  getPositionForPreset as calculatePositionForPreset
+} from './windowLayout'
+import { createTrayIcon } from './trayIcon'
 
 const APP_NAME = 'HydraBit'
 const userDataRoot = join(app.getPath('appData'), APP_NAME)
@@ -34,17 +43,13 @@ const DEFAULT_SETTINGS: Settings = {
   reminderMode: 'standard'
 }
 
-const PET_SIZES: Record<PetSize, { width: number; height: number }> = {
-  small: { width: 180, height: 156 },
-  medium: { width: 280, height: 232 },
-  large: { width: 380, height: 308 }
-}
-
 let widgetWindow: BrowserWindow | null = null
 let hudWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let state: AppState
 let saveTimer: NodeJS.Timeout | null = null
+let trayMenuTimer: NodeJS.Timeout | null = null
+let ignoreNextBoundsPersist = false
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
@@ -54,6 +59,7 @@ const defaultDailyStats = (): DailyStats => ({
   waterCount: 0,
   waterMl: 0,
   keyCount: 0,
+  waterLogs: [],
   supplements: []
 })
 
@@ -111,7 +117,12 @@ const readState = (): AppState => {
     if (!existsSync(storePath)) return fallback
 
     const parsed = JSON.parse(readFileSync(storePath, 'utf8')) as Partial<AppState>
-    const dailyStats = parsed.dailyStats?.date === todayKey() ? parsed.dailyStats : defaultDailyStats()
+    const parsedDailyStats = parsed.dailyStats?.date === todayKey() ? parsed.dailyStats : defaultDailyStats()
+    const dailyStats = {
+      ...defaultDailyStats(),
+      ...parsedDailyStats,
+      waterLogs: parsedDailyStats.waterLogs ?? []
+    }
     return {
       settings: { ...DEFAULT_SETTINGS, ...parsed.settings },
       dailyStats,
@@ -170,9 +181,17 @@ const confirmWater = () => {
   resetIfNewDay()
   state.dailyStats.waterCount += 1
   state.dailyStats.waterMl += state.settings.sipAmountMl
+  state.dailyStats.waterLogs = [
+    ...(state.dailyStats.waterLogs ?? []),
+    {
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      amountMl: state.settings.sipAmountMl
+    }
+  ].slice(-24)
   state.dailyStats.keyCount = 0
   state.thirsty = false
   publishState()
+  updateTrayMenuSoon()
   return state
 }
 
@@ -189,53 +208,25 @@ const confirmWaterFromHud = () => {
   return nextState
 }
 
+const showWidgetWindow = () => {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+
+  widgetWindow.showInactive()
+  widgetWindow.moveTop()
+}
+
 /* ── Widget bounds helpers ── */
-const getDefaultWidgetBounds = (width: number, height: number): WidgetBounds => {
-  const { workArea } = screen.getPrimaryDisplay()
-  return {
-    width,
-    height,
-    x: Math.round(workArea.x + workArea.width - width - 18),
-    y: Math.round(workArea.y + workArea.height - height - 18)
-  }
-}
-
-const clampNumber = (value: number, min: number, max: number) => {
-  return Math.min(Math.max(value, min), max)
-}
-
 const getDisplayForBounds = (bounds: WidgetBounds, width: number, height: number) => {
-  const centerX = bounds.x + width / 2
-  const centerY = bounds.y + height / 2
-
-  return (
-    screen.getAllDisplays().find(({ workArea }) => {
-      const insideX = centerX >= workArea.x && centerX <= workArea.x + workArea.width
-      const insideY = centerY >= workArea.y && centerY <= workArea.y + workArea.height
-      return insideX && insideY
-    }) ?? screen.getPrimaryDisplay()
-  )
+  return calculateDisplayForBounds(screen.getAllDisplays(), screen.getPrimaryDisplay(), bounds, width, height)
 }
 
 const clampWidgetBounds = (bounds: WidgetBounds, width: number, height: number): WidgetBounds => {
-  const { workArea } = getDisplayForBounds(bounds, width, height)
-  const margin = 18
-  const minX = workArea.x + margin
-  const minY = workArea.y + margin
-  const maxX = Math.max(minX, workArea.x + workArea.width - width - margin)
-  const maxY = Math.max(minY, workArea.y + workArea.height - height - margin)
-
-  return {
-    width,
-    height,
-    x: Math.round(clampNumber(bounds.x, minX, maxX)),
-    y: Math.round(clampNumber(bounds.y, minY, maxY))
-  }
+  return calculateClampedWidgetBounds(screen.getAllDisplays(), screen.getPrimaryDisplay(), bounds, width, height)
 }
 
 const getInitialWidgetBounds = (width: number, height: number): WidgetBounds => {
   if (!state.widgetBounds) {
-    return getDefaultWidgetBounds(width, height)
+    return calculateDefaultWidgetBounds(screen.getPrimaryDisplay().workArea, width, height)
   }
 
   return clampWidgetBounds(state.widgetBounds, width, height)
@@ -243,25 +234,34 @@ const getInitialWidgetBounds = (width: number, height: number): WidgetBounds => 
 
 const rememberWidgetBounds = () => {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
+  if (ignoreNextBoundsPersist) return
 
   state.widgetBounds = widgetWindow.getBounds()
   persistSoon()
 }
 
-/* ── Position presets ── */
-const getPositionForPreset = (preset: PositionPreset, width: number, height: number): WidgetBounds => {
-  const { workArea } = screen.getPrimaryDisplay()
-  const margin = 18
+const setWidgetBounds = (bounds: WidgetBounds, persist: boolean) => {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
 
-  const positions: Record<string, { x: number; y: number }> = {
-    'bottom-right': { x: workArea.x + workArea.width - width - margin, y: workArea.y + workArea.height - height - margin },
-    'bottom-left': { x: workArea.x + margin, y: workArea.y + workArea.height - height - margin },
-    'top-right': { x: workArea.x + workArea.width - width - margin, y: workArea.y + margin },
-    'top-left': { x: workArea.x + margin, y: workArea.y + margin }
+  if (!persist) {
+    ignoreNextBoundsPersist = true
   }
 
-  const pos = positions[preset] ?? positions['bottom-right']
-  return { width, height, x: Math.round(pos.x), y: Math.round(pos.y) }
+  widgetWindow.setBounds(bounds)
+
+  if (persist) {
+    state.widgetBounds = bounds
+    persistSoon()
+  } else {
+    setTimeout(() => {
+      ignoreNextBoundsPersist = false
+    }, 80)
+  }
+}
+
+/* ── Position presets ── */
+const getPositionForPreset = (preset: PositionPreset, width: number, height: number): WidgetBounds => {
+  return calculatePositionForPreset(screen.getPrimaryDisplay().workArea, preset, width, height)
 }
 
 /* ── Widget window ── */
@@ -296,6 +296,8 @@ const createWidgetWindow = () => {
 
   widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   widgetWindow.on('moved', rememberWidgetBounds)
+  widgetWindow.on('show', updateTrayMenuSoon)
+  widgetWindow.on('hide', updateTrayMenuSoon)
 
   if (process.env.ELECTRON_RENDERER_URL) {
     widgetWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -305,6 +307,7 @@ const createWidgetWindow = () => {
 
   widgetWindow.on('closed', () => {
     widgetWindow = null
+    updateTrayMenuSoon()
   })
 }
 
@@ -375,39 +378,163 @@ const createHudWindow = () => {
 }
 
 /* ── Tray ── */
-const createTray = () => {
-  const icon = nativeImage.createEmpty()
-  tray = new Tray(icon)
-  tray.setToolTip('HydraBit - 水蓝蓝')
+const ensureWidgetVisible = () => {
+  if (!widgetWindow || widgetWindow.isDestroyed()) {
+    createWidgetWindow()
+  }
 
-  const contextMenu = Menu.buildFromTemplate([
+  widgetWindow?.showInactive()
+  widgetWindow?.moveTop()
+}
+
+const isWidgetVisible = () => {
+  return Boolean(widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible())
+}
+
+const hideWidgetWindow = () => {
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.hide()
+  }
+}
+
+const quitApp = () => {
+  saveTodayToHistory()
+  writeState()
+  app.quit()
+}
+
+const toggleTrayPause = () => {
+  state.settings.paused = !state.settings.paused
+  publishState()
+  updateTrayMenuSoon()
+}
+
+const openDataPanelFromTray = () => {
+  ensureWidgetVisible()
+  const sendOpenDataPanel = () => widgetWindow?.webContents.send('hydrabit:open-data-panel')
+
+  if (widgetWindow?.webContents.isLoading()) {
+    widgetWindow.webContents.once('did-finish-load', sendOpenDataPanel)
+  } else {
+    sendOpenDataPanel()
+  }
+  updateTrayMenuSoon()
+}
+
+const triggerWaterFromTray = () => {
+  ensureWidgetVisible()
+  createHudWindow()
+  updateTrayMenuSoon()
+}
+
+const getTrayStatusLabel = () => {
+  if (state.settings.paused) return '暂停中'
+  if (state.thirsty) return '口渴中'
+  return '正常'
+}
+
+const getTrayTooltip = () => {
+  return [
+    'HydraBit - 水蓝蓝',
+    `今日 ${state.dailyStats.waterMl}ml / ${state.dailyStats.waterCount}次`,
+    `状态：${getTrayStatusLabel()}`
+  ].join('\n')
+}
+
+const updateTrayMenu = () => {
+  if (!tray || !state) return
+
+  const widgetVisible = isWidgetVisible()
+  const sipAmount = state.settings.sipAmountMl
+  const todayWater = state.dailyStats.waterMl
+  const todayCount = state.dailyStats.waterCount
+  const progress = Math.min(100, Math.round((todayWater / state.settings.dailyGoalMl) * 100))
+  const hotkey = state.settings.hotkey.replace('CommandOrControl', process.platform === 'darwin' ? 'Cmd' : 'Ctrl')
+  const menuTemplate: MenuItemConstructorOptions[] = [
     {
-      label: 'Show',
+      label: widgetVisible ? '隐藏水蓝蓝' : '显示水蓝蓝',
       click: () => {
-        if (widgetWindow && !widgetWindow.isDestroyed()) {
-          widgetWindow.showInactive()
-          widgetWindow.moveTop()
+        if (widgetVisible) {
+          hideWidgetWindow()
+        } else {
+          ensureWidgetVisible()
         }
+        updateTrayMenuSoon()
       }
+    },
+    {
+      label: `喝一口 (+${sipAmount}ml)`,
+      accelerator: state.settings.hotkey,
+      click: triggerWaterFromTray
+    },
+    {
+      label: '饮水数据',
+      click: openDataPanelFromTray
+    },
+    {
+      label: state.settings.paused ? '恢复提醒' : '暂停提醒',
+      type: 'checkbox',
+      checked: state.settings.paused,
+      click: toggleTrayPause
     },
     { type: 'separator' },
     {
-      label: 'Quit',
-      click: () => {
-        saveTodayToHistory()
-        writeState()
-        app.quit()
-      }
+      label: `今日 ${todayWater}ml / ${todayCount}次`,
+      enabled: false
+    },
+    {
+      label: `目标进度 ${progress}% (${state.settings.dailyGoalMl}ml)`,
+      enabled: false
+    },
+    {
+      label: `状态：${getTrayStatusLabel()}`,
+      enabled: false
+    },
+    {
+      label: `快捷键：${hotkey}`,
+      enabled: false
+    },
+    { type: 'separator' },
+    {
+      label: '退出 HydraBit',
+      click: quitApp
     }
-  ])
+  ]
 
-  tray.setContextMenu(contextMenu)
-  tray.on('double-click', () => {
-    if (widgetWindow && !widgetWindow.isDestroyed()) {
-      widgetWindow.showInactive()
-      widgetWindow.moveTop()
+  tray.setToolTip(getTrayTooltip())
+  tray.setContextMenu(Menu.buildFromTemplate(menuTemplate))
+}
+
+const updateTrayMenuSoon = () => {
+  if (trayMenuTimer) clearTimeout(trayMenuTimer)
+  trayMenuTimer = setTimeout(() => {
+    trayMenuTimer = null
+    updateTrayMenu()
+  }, 120)
+}
+
+const createTray = () => {
+  if (tray) return
+
+  tray = new Tray(createTrayIcon())
+  tray.setToolTip(getTrayTooltip())
+  updateTrayMenu()
+
+  tray.on('click', () => {
+    if (widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible()) {
+      hideWidgetWindow()
+    } else {
+      ensureWidgetVisible()
     }
+    updateTrayMenuSoon()
   })
+
+  tray.on('double-click', () => {
+    ensureWidgetVisible()
+    updateTrayMenuSoon()
+  })
+
+  tray.on('right-click', updateTrayMenu)
 }
 
 /* ── Hotkey management ── */
@@ -434,7 +561,7 @@ const registerHotkey = (accelerator: string) => {
 const resizeWidget = (size: PetSize) => {
   if (!widgetWindow || widgetWindow.isDestroyed()) return
 
-  const { width, height } = PET_SIZES[state.settings.petSize]
+  const { width, height } = PET_SIZES[size]
   const currentBounds = widgetWindow.getBounds()
 
   // Calculate new position to keep centered
@@ -455,6 +582,21 @@ const moveWidgetToPreset = (preset: PositionPreset) => {
   widgetWindow.setBounds(bounds)
   state.widgetBounds = bounds
   persistSoon()
+}
+
+const setWidgetMenuOpen = (open: boolean) => {
+  if (!widgetWindow || widgetWindow.isDestroyed()) return
+
+  const currentBounds = widgetWindow.getBounds()
+  const bounds = getMenuWidgetBounds(
+    screen.getAllDisplays(),
+    screen.getPrimaryDisplay(),
+    currentBounds,
+    state.settings.petSize,
+    open
+  )
+
+  setWidgetBounds(bounds, !open)
 }
 
 const startKeyboardActivityTracker = async () => {
@@ -520,6 +662,7 @@ if (!gotSingleInstanceLock) {
       }
 
       publishState()
+      updateTrayMenuSoon()
       return state
     })
 
@@ -538,22 +681,19 @@ if (!gotSingleInstanceLock) {
 
     /* ── IPC: Window management ── */
     ipcMain.handle('hydrabit:minimize-to-tray', () => {
-      if (widgetWindow && !widgetWindow.isDestroyed()) {
-        widgetWindow.hide()
-        tray?.displayBalloon({
-          title: 'HydraBit',
-          content: '水蓝蓝已最小化到托盘，双击图标可恢复'
-        })
-      }
+      hideWidgetWindow()
+      updateTrayMenuSoon()
     })
 
     ipcMain.handle('hydrabit:quit-app', () => {
-      saveTodayToHistory()
-      writeState()
-      app.quit()
+      quitApp()
     })
 
     /* ── IPC: Always on top ── */
+    ipcMain.handle('hydrabit:set-menu-open', (_event, open: boolean) => {
+      setWidgetMenuOpen(open)
+    })
+
     ipcMain.handle('hydrabit:set-always-on-top', (_event, flag: boolean) => {
       state.settings.alwaysOnTop = flag
       widgetWindow?.setAlwaysOnTop(flag)
@@ -625,6 +765,12 @@ if (!gotSingleInstanceLock) {
     /* ── IPC: Data management ── */
     ipcMain.handle('hydrabit:get-history', () => {
       const history = readHistory()
+      history[state.dailyStats.date] = {
+        date: state.dailyStats.date,
+        waterCount: state.dailyStats.waterCount,
+        waterMl: state.dailyStats.waterMl,
+        goalMet: state.dailyStats.waterMl >= state.settings.dailyGoalMl
+      }
       const days = Object.values(history).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 7)
 
       // Calculate streak
@@ -645,6 +791,7 @@ if (!gotSingleInstanceLock) {
       state.dailyStats = defaultDailyStats()
       state.thirsty = false
       publishState()
+      updateTrayMenuSoon()
       return state
     })
 
@@ -670,6 +817,7 @@ if (!gotSingleInstanceLock) {
       })
 
       publishState()
+      updateTrayMenuSoon()
       return state
     })
 
@@ -685,6 +833,9 @@ app.on('window-all-closed', () => undefined)
 
 app.on('will-quit', () => {
   saveTodayToHistory()
+  if (trayMenuTimer) clearTimeout(trayMenuTimer)
+  tray?.destroy()
+  tray = null
   globalShortcut.unregisterAll()
   writeState()
 })

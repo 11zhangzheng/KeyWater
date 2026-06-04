@@ -3,6 +3,11 @@ export type SupplementLog = {
   count: number
 }
 
+export type WaterLog = {
+  time: string
+  amountMl: number
+}
+
 export type PetSize = 'small' | 'medium' | 'large'
 export type PositionPreset = 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'free'
 export type ReminderMode = 'quiet' | 'standard' | 'lively'
@@ -32,6 +37,7 @@ export type DailyStats = {
   waterCount: number
   waterMl: number
   keyCount: number
+  waterLogs: WaterLog[]
   supplements: SupplementLog[]
 }
 

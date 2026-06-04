@@ -8,6 +8,7 @@ const api = {
   addKeyPress: () => ipcRenderer.invoke("hydrabit:add-key-press"),
   minimizeToTray: () => ipcRenderer.invoke("hydrabit:minimize-to-tray"),
   quitApp: () => ipcRenderer.invoke("hydrabit:quit-app"),
+  setMenuOpen: (open) => ipcRenderer.invoke("hydrabit:set-menu-open", open),
   // Window management
   setAlwaysOnTop: (flag) => ipcRenderer.invoke("hydrabit:set-always-on-top", flag),
   setLockPosition: (flag) => ipcRenderer.invoke("hydrabit:set-lock-position", flag),
@@ -31,6 +32,11 @@ const api = {
     const listener = () => callback();
     ipcRenderer.on("hydrabit:hud", listener);
     return () => ipcRenderer.removeListener("hydrabit:hud", listener);
+  },
+  onOpenDataPanel: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("hydrabit:open-data-panel", listener);
+    return () => ipcRenderer.removeListener("hydrabit:open-data-panel", listener);
   }
 };
 contextBridge.exposeInMainWorld("hydrabit", api);
