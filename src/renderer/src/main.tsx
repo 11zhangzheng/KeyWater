@@ -3,40 +3,12 @@ import { createRoot } from 'react-dom/client'
 import '@fontsource/press-start-2p'
 import './styles.css'
 import type { AppState, ReminderMode } from '../../shared/types'
+import { defaultAppState } from '../../shared/defaults'
 import { PetMenu } from './PetMenu'
 import { DataPanel } from './DataPanel'
 
 /* ── Fallback state ── */
-const fallbackState: AppState = {
-  settings: {
-    keyThreshold: 2000,
-    sipAmountMl: 250,
-    enableSupplements: false,
-    paused: false,
-    autoLaunch: false,
-    dailyGoalMl: 2000,
-    showHud: true,
-    leakEffect: true,
-    floatAnimation: true,
-    hotkey: 'CommandOrControl+Shift+W',
-    alwaysOnTop: true,
-    lockPosition: false,
-    transparentBg: true,
-    petSize: 'medium',
-    positionPreset: 'bottom-right',
-    reminderMode: 'standard'
-  },
-  dailyStats: {
-    date: new Date().toISOString().slice(0, 10),
-    waterCount: 0,
-    waterMl: 0,
-    keyCount: 0,
-    waterLogs: [],
-    supplements: []
-  },
-  thirsty: false,
-  keyboardTracker: 'disabled'
-}
+const fallbackState: AppState = defaultAppState()
 
 /* ── State derivation ── */
 type PetState = 'full' | 'normal' | 'thirsty' | 'empty'
@@ -199,12 +171,11 @@ function App() {
   useEffect(() => {
     window.keysip.getState().then(setState)
     const offState = window.keysip.onState(setState)
-    const offHud = window.keysip.onHud(() => setHudOpen(true))
     const offOpenDataPanel = window.keysip.onOpenDataPanel(() => {
       setPetMenuOpen(false)
       setDataPanelOpen(true)
     })
-    return () => { offState(); offHud(); offOpenDataPanel() }
+    return () => { offState(); offOpenDataPanel() }
   }, [])
 
   useEffect(() => {

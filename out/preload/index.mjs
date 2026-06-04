@@ -28,11 +28,6 @@ const api = {
     ipcRenderer.on("keysip:state", listener);
     return () => ipcRenderer.removeListener("keysip:state", listener);
   },
-  onHud: (callback) => {
-    const listener = () => callback();
-    ipcRenderer.on("keysip:hud", listener);
-    return () => ipcRenderer.removeListener("keysip:hud", listener);
-  },
   onOpenDataPanel: (callback) => {
     const listener = () => callback();
     ipcRenderer.on("keysip:open-data-panel", listener);

@@ -1,4 +1,4 @@
-﻿import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import type { AppState, Settings, PetSize, PositionPreset } from '../shared/types'
 
 const api = {
@@ -45,11 +45,6 @@ const api = {
     ipcRenderer.on('keysip:state', listener)
     return () => ipcRenderer.removeListener('keysip:state', listener)
   },
-  onHud: (callback: () => void) => {
-    const listener = () => callback()
-    ipcRenderer.on('keysip:hud', listener)
-    return () => ipcRenderer.removeListener('keysip:hud', listener)
-  },
   onOpenDataPanel: (callback: () => void) => {
     const listener = () => callback()
     ipcRenderer.on('keysip:open-data-panel', listener)
@@ -64,4 +59,3 @@ declare global {
     keysip: typeof api
   }
 }
-

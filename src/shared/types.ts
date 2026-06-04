@@ -1,8 +1,3 @@
-export type SupplementLog = {
-  name: string
-  count: number
-}
-
 export type WaterLog = {
   time: string
   amountMl: number
@@ -15,10 +10,8 @@ export type ReminderMode = 'quiet' | 'standard' | 'lively'
 export type Settings = {
   keyThreshold: number
   sipAmountMl: number
-  enableSupplements: boolean
   paused: boolean
   autoLaunch: boolean
-  // New fields
   dailyGoalMl: number
   showHud: boolean
   leakEffect: boolean
@@ -38,7 +31,6 @@ export type DailyStats = {
   waterMl: number
   keyCount: number
   waterLogs: WaterLog[]
-  supplements: SupplementLog[]
 }
 
 export type DailyHistory = {
