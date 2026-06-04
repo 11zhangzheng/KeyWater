@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import type { AppState, DailyHistory } from '../../shared/types'
 
 type HistoryData = {
@@ -29,7 +29,7 @@ export function DataPanel({ state, panelRef, onClose }: DataPanelProps) {
   const [history, setHistory] = useState<HistoryData>({ days: [], streak: 0 })
 
   useEffect(() => {
-    window.hydrabit.getHistory().then(setHistory)
+    window.keysip.getHistory().then(setHistory)
   }, [state.dailyStats.waterCount, state.dailyStats.waterMl])
 
   const progress = Math.min(100, Math.round((state.dailyStats.waterMl / state.settings.dailyGoalMl) * 100))
@@ -109,3 +109,4 @@ export function DataPanel({ state, panelRef, onClose }: DataPanelProps) {
     </div>
   )
 }
+

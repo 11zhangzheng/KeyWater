@@ -1,9 +1,9 @@
 {
-  "name": "hydrabit",
+  "name": "keysip",
   "version": "0.1.0",
-  "description": "A tiny pixel desktop widget for water and supplement micro-habits.",
+  "description": "KeySip is a tiny pixel desktop widget for water micro-habits.",
   "main": "out/main/index.js",
-  "author": "HydraBit",
+  "author": "KeySip",
   "license": "MIT",
   "type": "module",
   "scripts": {
@@ -30,8 +30,8 @@
     "@types/react-dom": "^19.2.3"
   },
   "build": {
-    "appId": "app.hydrabit.desktop",
-    "productName": "HydraBit",
+    "appId": "app.keysip.desktop",
+    "productName": "KeySip",
     "directories": {
       "output": "release"
     },

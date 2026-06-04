@@ -1,7 +1,7 @@
-{
+﻿{
   "pet_id": "hydra",
   "display_name": "Hydra",
-  "description": "A compact three-headed cyber hydra companion for a curious builder working in HydraBit.",
+  "description": "A compact three-headed cyber hydra companion for a curious builder working in KeySip.",
   "created_at": "2026-06-03T12:22:20.811240+00:00",
   "atlas": {
     "columns": 8,
@@ -188,7 +188,7 @@
     "name": "magenta",
     "selection": "fallback"
   },
-  "pet_notes": "Compact friendly three-headed cyber hydra mascot, inspired by HydraBit and a thoughtful builder personality; teal and graphite body, tiny ruby-red accent bits, subtle circuit-scale markings, expressive heads for curiosity, caution, and momentum, no text or logos.",
+  "pet_notes": "Compact friendly three-headed cyber hydra mascot, inspired by KeySip and a thoughtful builder personality; teal and graphite body, tiny ruby-red accent bits, subtle circuit-scale markings, expressive heads for curiosity, caution, and momentum, no text or logos.",
   "style_preset": "sticker",
   "style_notes": "Readable sticker/plush hybrid, clean thick outline, soft dimensional shading, compact whole-body silhouette, pet-safe for 192x208 cells.",
   "style_contract": "Pet-safe sprite: compact full-body mascot, readable in a 192x208 cell, clear silhouette, simple face, stable palette/materials, and crisp edges for chroma-key extraction. Style `sticker`: Polished sticker mascot with bold clean shapes, crisp outline, flat colors, and minimal highlight detail. User style notes: Readable sticker/plush hybrid, clean thick outline, soft dimensional shading, compact whole-body silhouette, pet-safe for 192x208 cells..",
@@ -198,3 +198,4 @@
   "pet_safe_style": "Pet-safe sprite: compact full-body mascot, readable in a 192x208 cell, clear silhouette, simple face, stable palette/materials, and crisp edges for chroma-key extraction.",
   "primary_generation_skill": "$imagegen"
 }
+

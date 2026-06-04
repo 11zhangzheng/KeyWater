@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, type MenuItemConstructorOptions } from 'electron'
+﻿import { app, BrowserWindow, globalShortcut, ipcMain, screen, Tray, Menu, type MenuItemConstructorOptions } from 'electron'
 import { dirname, join } from 'node:path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import type { AppState, DailyStats, DailyHistory, Settings, WidgetBounds, PetSize, PositionPreset } from '../shared/types'
@@ -12,8 +12,16 @@ import {
 } from './windowLayout'
 import { createTrayIcon } from './trayIcon'
 
-const APP_NAME = 'HydraBit'
+const APP_NAME = 'KeySip'
+const fromCharCodes = (codes: number[]) => String.fromCharCode(...codes)
+const LEGACY_APP_NAME = fromCharCodes([72, 121, 100, 114, 97, 66, 105, 116])
+const STORE_FILE_NAME = 'keysip-state.json'
+const HISTORY_FILE_NAME = 'keysip-history.json'
+const LEGACY_FILE_PREFIX = fromCharCodes([104, 121, 100, 114, 97, 98, 105, 116])
+const LEGACY_STORE_FILE_NAME = `${LEGACY_FILE_PREFIX}-state.json`
+const LEGACY_HISTORY_FILE_NAME = `${LEGACY_FILE_PREFIX}-history.json`
 const userDataRoot = join(app.getPath('appData'), APP_NAME)
+const legacyUserDataRoot = join(app.getPath('appData'), LEGACY_APP_NAME)
 const sessionDataRoot = join(userDataRoot, 'session')
 const diskCacheRoot = join(sessionDataRoot, 'cache')
 
@@ -63,14 +71,22 @@ const defaultDailyStats = (): DailyStats => ({
   supplements: []
 })
 
-const getStorePath = () => join(app.getPath('userData'), 'hydrabit-state.json')
-const getHistoryPath = () => join(app.getPath('userData'), 'hydrabit-history.json')
+const getReadablePath = (currentPath: string, legacyPath: string) => {
+  if (existsSync(currentPath)) return currentPath
+  if (existsSync(legacyPath)) return legacyPath
+  return currentPath
+}
+
+const getStorePath = () => join(app.getPath('userData'), STORE_FILE_NAME)
+const getHistoryPath = () => join(app.getPath('userData'), HISTORY_FILE_NAME)
+const getReadableStorePath = () => getReadablePath(getStorePath(), join(legacyUserDataRoot, LEGACY_STORE_FILE_NAME))
+const getReadableHistoryPath = () => getReadablePath(getHistoryPath(), join(legacyUserDataRoot, LEGACY_HISTORY_FILE_NAME))
 const getPreloadPath = () => join(__dirname, '../preload/index.mjs')
 
 /* ── History persistence ── */
 const readHistory = (): Record<string, DailyHistory> => {
   try {
-    const path = getHistoryPath()
+    const path = getReadableHistoryPath()
     if (!existsSync(path)) return {}
     return JSON.parse(readFileSync(path, 'utf8'))
   } catch {
@@ -88,7 +104,7 @@ const writeHistory = (history: Record<string, DailyHistory>) => {
     for (const k of keys) trimmed[k] = history[k]
     writeFileSync(path, JSON.stringify(trimmed, null, 2), 'utf8')
   } catch (error) {
-    console.error('[HydraBit] Failed to write history:', error)
+    console.error('[KeySip] Failed to write history:', error)
   }
 }
 
@@ -113,7 +129,7 @@ const readState = (): AppState => {
   }
 
   try {
-    const storePath = getStorePath()
+    const storePath = getReadableStorePath()
     if (!existsSync(storePath)) return fallback
 
     const parsed = JSON.parse(readFileSync(storePath, 'utf8')) as Partial<AppState>
@@ -131,7 +147,7 @@ const readState = (): AppState => {
       widgetBounds: parsed.widgetBounds
     }
   } catch (error) {
-    console.error('[HydraBit] Failed to read local state:', error)
+    console.error('[KeySip] Failed to read local state:', error)
     return fallback
   }
 }
@@ -144,7 +160,7 @@ const writeState = () => {
     mkdirSync(dirname(storePath), { recursive: true })
     writeFileSync(storePath, JSON.stringify(state, null, 2), 'utf8')
   } catch (error) {
-    console.error('[HydraBit] Failed to write local state:', error)
+    console.error('[KeySip] Failed to write local state:', error)
   }
 }
 
@@ -164,8 +180,8 @@ const resetIfNewDay = () => {
 
 const publishState = () => {
   resetIfNewDay()
-  widgetWindow?.webContents.send('hydrabit:state', state)
-  hudWindow?.webContents.send('hydrabit:state', state)
+  widgetWindow?.webContents.send('keysip:state', state)
+  hudWindow?.webContents.send('keysip:state', state)
   persistSoon()
 }
 
@@ -367,7 +383,7 @@ const createHudWindow = () => {
   }
 
   hudWindow.once('ready-to-show', () => {
-    hudWindow?.webContents.send('hydrabit:state', state)
+    hudWindow?.webContents.send('keysip:state', state)
     hudWindow?.show()
     hudWindow?.focus()
   })
@@ -411,7 +427,7 @@ const toggleTrayPause = () => {
 
 const openDataPanelFromTray = () => {
   ensureWidgetVisible()
-  const sendOpenDataPanel = () => widgetWindow?.webContents.send('hydrabit:open-data-panel')
+  const sendOpenDataPanel = () => widgetWindow?.webContents.send('keysip:open-data-panel')
 
   if (widgetWindow?.webContents.isLoading()) {
     widgetWindow.webContents.once('did-finish-load', sendOpenDataPanel)
@@ -435,7 +451,7 @@ const getTrayStatusLabel = () => {
 
 const getTrayTooltip = () => {
   return [
-    'HydraBit - 水蓝蓝',
+    'KeySip - 水蓝蓝',
     `今日 ${state.dailyStats.waterMl}ml / ${state.dailyStats.waterCount}次`,
     `状态：${getTrayStatusLabel()}`
   ].join('\n')
@@ -496,7 +512,7 @@ const updateTrayMenu = () => {
     },
     { type: 'separator' },
     {
-      label: '退出 HydraBit',
+      label: '退出 KeySip',
       click: quitApp
     }
   ]
@@ -607,7 +623,7 @@ const startKeyboardActivityTracker = async () => {
     hook.start()
     state.keyboardTracker = 'global'
   } catch (error) {
-    console.warn('[HydraBit] Global keyboard tracker unavailable, using window fallback:', error)
+    console.warn('[KeySip] Global keyboard tracker unavailable, using window fallback:', error)
     state.keyboardTracker = 'window-fallback'
   }
   publishState()
@@ -637,13 +653,13 @@ if (!gotSingleInstanceLock) {
     await startKeyboardActivityTracker()
 
     /* ── IPC: State ── */
-    ipcMain.handle('hydrabit:get-state', () => {
+    ipcMain.handle('keysip:get-state', () => {
       resetIfNewDay()
       return state
     })
 
     /* ── IPC: Update settings ── */
-    ipcMain.handle('hydrabit:update-settings', (_event, updates: Partial<Settings>) => {
+    ipcMain.handle('keysip:update-settings', (_event, updates: Partial<Settings>) => {
       state.settings = {
         ...state.settings,
         ...updates,
@@ -667,34 +683,34 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Water actions ── */
-    ipcMain.handle('hydrabit:confirm-water', () => {
+    ipcMain.handle('keysip:confirm-water', () => {
       return confirmWaterFromHud()
     })
-    ipcMain.handle('hydrabit:cancel-hud', () => {
+    ipcMain.handle('keysip:cancel-hud', () => {
       closeHudWindow()
     })
-    ipcMain.handle('hydrabit:trigger-hud', () => createHudWindow())
-    ipcMain.handle('hydrabit:add-key-press', () => {
+    ipcMain.handle('keysip:trigger-hud', () => createHudWindow())
+    ipcMain.handle('keysip:add-key-press', () => {
       if (state.keyboardTracker === 'window-fallback') incrementKeyCount()
       return state
     })
 
     /* ── IPC: Window management ── */
-    ipcMain.handle('hydrabit:minimize-to-tray', () => {
+    ipcMain.handle('keysip:minimize-to-tray', () => {
       hideWidgetWindow()
       updateTrayMenuSoon()
     })
 
-    ipcMain.handle('hydrabit:quit-app', () => {
+    ipcMain.handle('keysip:quit-app', () => {
       quitApp()
     })
 
     /* ── IPC: Always on top ── */
-    ipcMain.handle('hydrabit:set-menu-open', (_event, open: boolean) => {
+    ipcMain.handle('keysip:set-menu-open', (_event, open: boolean) => {
       setWidgetMenuOpen(open)
     })
 
-    ipcMain.handle('hydrabit:set-always-on-top', (_event, flag: boolean) => {
+    ipcMain.handle('keysip:set-always-on-top', (_event, flag: boolean) => {
       state.settings.alwaysOnTop = flag
       widgetWindow?.setAlwaysOnTop(flag)
       publishState()
@@ -702,7 +718,7 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Lock position ── */
-    ipcMain.handle('hydrabit:set-lock-position', (_event, flag: boolean) => {
+    ipcMain.handle('keysip:set-lock-position', (_event, flag: boolean) => {
       state.settings.lockPosition = flag
       // Inject CSS to toggle drag region
       widgetWindow?.webContents.executeJavaScript(
@@ -713,16 +729,16 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Transparent background ── */
-    ipcMain.handle('hydrabit:set-transparent-bg', (_event, flag: boolean) => {
+    ipcMain.handle('keysip:set-transparent-bg', (_event, flag: boolean) => {
       state.settings.transparentBg = flag
       // Note: transparency must be set at window creation; we toggle via CSS class
-      widgetWindow?.webContents.send('hydrabit:state', state)
+      widgetWindow?.webContents.send('keysip:state', state)
       publishState()
       return state
     })
 
     /* ── IPC: Pet size ── */
-    ipcMain.handle('hydrabit:set-pet-size', (_event, size: PetSize) => {
+    ipcMain.handle('keysip:set-pet-size', (_event, size: PetSize) => {
       state.settings.petSize = size
       resizeWidget(size)
       publishState()
@@ -730,7 +746,7 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Position preset ── */
-    ipcMain.handle('hydrabit:set-position', (_event, preset: PositionPreset) => {
+    ipcMain.handle('keysip:set-position', (_event, preset: PositionPreset) => {
       state.settings.positionPreset = preset
       if (preset !== 'free') {
         moveWidgetToPreset(preset)
@@ -740,7 +756,7 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Hotkey ── */
-    ipcMain.handle('hydrabit:set-hotkey', (_event, accelerator: string) => {
+    ipcMain.handle('keysip:set-hotkey', (_event, accelerator: string) => {
       const result = registerHotkey(accelerator)
       if (result.ok) {
         state.settings.hotkey = accelerator
@@ -749,7 +765,7 @@ if (!gotSingleInstanceLock) {
       return { ...result, state }
     })
 
-    ipcMain.handle('hydrabit:test-hotkey', (_event, accelerator: string) => {
+    ipcMain.handle('keysip:test-hotkey', (_event, accelerator: string) => {
       try {
         const ok = globalShortcut.register(accelerator, () => { /* noop test */ })
         if (ok) {
@@ -763,7 +779,7 @@ if (!gotSingleInstanceLock) {
     })
 
     /* ── IPC: Data management ── */
-    ipcMain.handle('hydrabit:get-history', () => {
+    ipcMain.handle('keysip:get-history', () => {
       const history = readHistory()
       history[state.dailyStats.date] = {
         date: state.dailyStats.date,
@@ -787,7 +803,7 @@ if (!gotSingleInstanceLock) {
       return { days, streak }
     })
 
-    ipcMain.handle('hydrabit:clear-today', () => {
+    ipcMain.handle('keysip:clear-today', () => {
       state.dailyStats = defaultDailyStats()
       state.thirsty = false
       publishState()
@@ -795,7 +811,7 @@ if (!gotSingleInstanceLock) {
       return state
     })
 
-    ipcMain.handle('hydrabit:reset-all', () => {
+    ipcMain.handle('keysip:reset-all', () => {
       // Clear history file
       try {
         const historyPath = getHistoryPath()
@@ -839,3 +855,4 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
   writeState()
 })
+

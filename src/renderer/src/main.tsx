@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource/press-start-2p'
 import './styles.css'
@@ -177,7 +177,7 @@ function App() {
   const [isRefilling, setIsRefilling] = useState(false)
 
   const [animationsEnabled, setAnimationsEnabled] = useState(() => {
-    return localStorage.getItem('hb-animations') !== 'off'
+    return localStorage.getItem('ks-animations') !== 'off'
   })
 
   const hudOnly = new URLSearchParams(window.location.search).get('hud') === '1'
@@ -189,7 +189,7 @@ function App() {
   const [menuAnchorRect, setMenuAnchorRect] = useState<DOMRect | null>(null)
 
   useEffect(() => {
-    localStorage.setItem('hb-animations', animationsEnabled ? 'on' : 'off')
+    localStorage.setItem('ks-animations', animationsEnabled ? 'on' : 'off')
   }, [animationsEnabled])
 
   useEffect(() => {
@@ -197,10 +197,10 @@ function App() {
   }, [animationsEnabled])
 
   useEffect(() => {
-    window.hydrabit.getState().then(setState)
-    const offState = window.hydrabit.onState(setState)
-    const offHud = window.hydrabit.onHud(() => setHudOpen(true))
-    const offOpenDataPanel = window.hydrabit.onOpenDataPanel(() => {
+    window.keysip.getState().then(setState)
+    const offState = window.keysip.onState(setState)
+    const offHud = window.keysip.onHud(() => setHudOpen(true))
+    const offOpenDataPanel = window.keysip.onOpenDataPanel(() => {
       setPetMenuOpen(false)
       setDataPanelOpen(true)
     })
@@ -212,7 +212,7 @@ function App() {
       if (hudOpen && event.key === 'Enter') {
         event.preventDefault()
         setIsRefilling(true)
-        window.hydrabit.confirmWater().then(setState)
+        window.keysip.confirmWater().then(setState)
         setHudOpen(false)
         setTimeout(() => setIsRefilling(false), 600)
         return
@@ -220,11 +220,11 @@ function App() {
       if (hudOpen && event.key === 'Escape') {
         event.preventDefault()
         setHudOpen(false)
-        window.hydrabit.cancelHud()
+        window.keysip.cancelHud()
         return
       }
       if (!hudOnly) {
-        window.hydrabit.addKeyPress().then(setState)
+        window.keysip.addKeyPress().then(setState)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -287,7 +287,7 @@ function App() {
 
   useEffect(() => {
     if (hudOnly) return
-    window.hydrabit.setMenuOpen(petMenuOpen || dataPanelOpen)
+    window.keysip.setMenuOpen(petMenuOpen || dataPanelOpen)
   }, [hudOnly, petMenuOpen, dataPanelOpen])
 
   const progress = useMemo(() => {
@@ -296,16 +296,16 @@ function App() {
 
   const handleRefill = useCallback(() => {
     setIsRefilling(true)
-    window.hydrabit.confirmWater().then(setState)
+    window.keysip.confirmWater().then(setState)
     setTimeout(() => setIsRefilling(false), 600)
   }, [])
 
   const handleMinimize = useCallback(() => {
-    window.hydrabit.minimizeToTray()
+    window.keysip.minimizeToTray()
   }, [])
 
   const handleQuit = useCallback(() => {
-    window.hydrabit.quitApp()
+    window.keysip.quitApp()
   }, [])
 
   const handlePetMouseDown = useCallback((e: React.MouseEvent) => {
@@ -389,3 +389,4 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<App />)
+

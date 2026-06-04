@@ -1,6 +1,6 @@
-Create Codex pet row `waiting` for `hydra`: exactly 6 full-body frames in one horizontal strip on flat pure magenta #FF00FF.
+﻿Create Codex pet row `waiting` for `hydra`: exactly 6 full-body frames in one horizontal strip on flat pure magenta #FF00FF.
 
-Use the attached canonical base for identity and the layout guide only for spacing. Same pet in every frame: Compact friendly three-headed cyber hydra mascot, inspired by HydraBit and a thoughtful builder personality; teal and graphite body, tiny ruby-red accent bits, subtle circuit-scale markings, expressive heads for curiosity, caution, and momentum, no text or logos.. Preserve silhouette, face, palette, material, proportions, markings, and props.
+Use the attached canonical base for identity and the layout guide only for spacing. Same pet in every frame: Compact friendly three-headed cyber hydra mascot, inspired by KeySip and a thoughtful builder personality; teal and graphite body, tiny ruby-red accent bits, subtle circuit-scale markings, expressive heads for curiosity, caution, and momentum, no text or logos.. Preserve silhouette, face, palette, material, proportions, markings, and props.
 
 Keep apparent pet scale and baseline stable within the row unless the state itself intentionally changes vertical position, such as `jumping`.
 
@@ -11,3 +11,4 @@ State requirements:
 - Keep the motion patient and readable, without turning it into ordinary idle or review.
 
 One centered complete pose per invisible slot. No text, boxes, guide marks, scenery, shadows, glows, motion blur, speed lines, dust, detached effects, stray pixels, or #FF00FF colors in the pet.
+

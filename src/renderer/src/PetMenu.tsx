@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState } from 'react'
+﻿import React, { useLayoutEffect, useState } from 'react'
 import type { AppState } from '../../shared/types'
 import { calculateMenuLayout, type MenuLayout, type MenuPlacement } from './menuLayout'
 
@@ -63,7 +63,7 @@ export function PetMenu({
   }, [anchorRect, currentSip, currentThreshold, expandReminder, expandSip, menuRef])
 
   const updateSip = (ml: number) => {
-    window.hydrabit.updateSettings({ sipAmountMl: ml })
+    window.keysip.updateSettings({ sipAmountMl: ml })
     setExpandSip(false)
   }
 
@@ -76,7 +76,7 @@ export function PetMenu({
   }
 
   const updateReminder = (threshold: number) => {
-    window.hydrabit.updateSettings({ keyThreshold: threshold })
+    window.keysip.updateSettings({ keyThreshold: threshold })
     setExpandReminder(false)
   }
 
@@ -159,7 +159,7 @@ export function PetMenu({
             </div>
           )}
 
-          <button type="button" className="pet-menu-item" onClick={() => window.hydrabit.updateSettings({ paused: !isPaused })}>
+          <button type="button" className="pet-menu-item" onClick={() => window.keysip.updateSettings({ paused: !isPaused })}>
             <span className="pet-menu-icon pet-menu-icon-pause" aria-hidden="true" />
             <span className="pet-menu-label">{isPaused ? '恢复' : '暂停'}</span>
             <span className="pet-menu-right" />
@@ -187,3 +187,4 @@ export function PetMenu({
     </div>
   )
 }
+

@@ -12536,7 +12536,7 @@ function PetMenu({
     }));
   }, [anchorRect, currentSip, currentThreshold, expandReminder, expandSip, menuRef]);
   const updateSip = (ml) => {
-    window.hydrabit.updateSettings({ sipAmountMl: ml });
+    window.keysip.updateSettings({ sipAmountMl: ml });
     setExpandSip(false);
   };
   const updateCustomSip = () => {
@@ -12547,7 +12547,7 @@ function PetMenu({
     }
   };
   const updateReminder = (threshold) => {
-    window.hydrabit.updateSettings({ keyThreshold: threshold });
+    window.keysip.updateSettings({ keyThreshold: threshold });
     setExpandReminder(false);
   };
   const updateCustomReminder = () => {
@@ -12644,7 +12644,7 @@ function PetMenu({
             )),
             /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", className: "pet-menu-option", onClick: updateCustomReminder, children: "自定义" })
           ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: () => window.hydrabit.updateSettings({ paused: !isPaused }), children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { type: "button", className: "pet-menu-item", onClick: () => window.keysip.updateSettings({ paused: !isPaused }), children: [
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-icon pet-menu-icon-pause", "aria-hidden": "true" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-label", children: isPaused ? "恢复" : "暂停" }),
             /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "pet-menu-right" })
@@ -12683,7 +12683,7 @@ const getLastSevenDays = () => {
 function DataPanel({ state, panelRef, onClose }) {
   const [history, setHistory] = reactExports.useState({ days: [], streak: 0 });
   reactExports.useEffect(() => {
-    window.hydrabit.getHistory().then(setHistory);
+    window.keysip.getHistory().then(setHistory);
   }, [state.dailyStats.waterCount, state.dailyStats.waterMl]);
   const progress = Math.min(100, Math.round(state.dailyStats.waterMl / state.settings.dailyGoalMl * 100));
   const recentLogs = [...state.dailyStats.waterLogs ?? []].slice(-5).reverse();
@@ -12886,7 +12886,7 @@ function App() {
   const [dataPanelOpen, setDataPanelOpen] = reactExports.useState(false);
   const [isRefilling, setIsRefilling] = reactExports.useState(false);
   const [animationsEnabled, setAnimationsEnabled] = reactExports.useState(() => {
-    return localStorage.getItem("hb-animations") !== "off";
+    return localStorage.getItem("ks-animations") !== "off";
   });
   const hudOnly = new URLSearchParams(window.location.search).get("hud") === "1";
   const mouseDownRef = reactExports.useRef(null);
@@ -12895,16 +12895,16 @@ function App() {
   const dataPanelRef = reactExports.useRef(null);
   const [menuAnchorRect, setMenuAnchorRect] = reactExports.useState(null);
   reactExports.useEffect(() => {
-    localStorage.setItem("hb-animations", animationsEnabled ? "on" : "off");
+    localStorage.setItem("ks-animations", animationsEnabled ? "on" : "off");
   }, [animationsEnabled]);
   reactExports.useEffect(() => {
     document.body.classList.toggle("no-anim", !animationsEnabled);
   }, [animationsEnabled]);
   reactExports.useEffect(() => {
-    window.hydrabit.getState().then(setState);
-    const offState = window.hydrabit.onState(setState);
-    const offHud = window.hydrabit.onHud(() => setHudOpen(true));
-    const offOpenDataPanel = window.hydrabit.onOpenDataPanel(() => {
+    window.keysip.getState().then(setState);
+    const offState = window.keysip.onState(setState);
+    const offHud = window.keysip.onHud(() => setHudOpen(true));
+    const offOpenDataPanel = window.keysip.onOpenDataPanel(() => {
       setPetMenuOpen(false);
       setDataPanelOpen(true);
     });
@@ -12919,7 +12919,7 @@ function App() {
       if (hudOpen && event.key === "Enter") {
         event.preventDefault();
         setIsRefilling(true);
-        window.hydrabit.confirmWater().then(setState);
+        window.keysip.confirmWater().then(setState);
         setHudOpen(false);
         setTimeout(() => setIsRefilling(false), 600);
         return;
@@ -12927,11 +12927,11 @@ function App() {
       if (hudOpen && event.key === "Escape") {
         event.preventDefault();
         setHudOpen(false);
-        window.hydrabit.cancelHud();
+        window.keysip.cancelHud();
         return;
       }
       if (!hudOnly) {
-        window.hydrabit.addKeyPress().then(setState);
+        window.keysip.addKeyPress().then(setState);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -12983,21 +12983,21 @@ function App() {
   }, [petMenuOpen]);
   reactExports.useEffect(() => {
     if (hudOnly) return;
-    window.hydrabit.setMenuOpen(petMenuOpen || dataPanelOpen);
+    window.keysip.setMenuOpen(petMenuOpen || dataPanelOpen);
   }, [hudOnly, petMenuOpen, dataPanelOpen]);
   const progress = reactExports.useMemo(() => {
     return Math.min(1, state.dailyStats.keyCount / state.settings.keyThreshold);
   }, [state.dailyStats.keyCount, state.settings.keyThreshold]);
   const handleRefill = reactExports.useCallback(() => {
     setIsRefilling(true);
-    window.hydrabit.confirmWater().then(setState);
+    window.keysip.confirmWater().then(setState);
     setTimeout(() => setIsRefilling(false), 600);
   }, []);
   const handleMinimize = reactExports.useCallback(() => {
-    window.hydrabit.minimizeToTray();
+    window.keysip.minimizeToTray();
   }, []);
   const handleQuit = reactExports.useCallback(() => {
-    window.hydrabit.quitApp();
+    window.keysip.quitApp();
   }, []);
   const handlePetMouseDown = reactExports.useCallback((e) => {
     if (e.button !== 0) return;
