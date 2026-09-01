@@ -5,6 +5,9 @@ KeySip 是一个通过键盘肌肉记忆帮助你喝水的桌面小挂件。
 敲久了，就喝一口。
 
 水蓝蓝是 KeySip 中的像素水灵桌宠。它常驻在桌面角落，根据键盘活跃度判断自己是否“口渴”，不弹窗、不发系统通知，只通过轻微动画、快捷键和饮水记录帮你养成微习惯。
+<img width="153" height="195" alt="image" src="https://github.com/user-attachments/assets/d7844cfb-4ced-4290-8029-67cf4c1cc47f" />
+
+
 
 ## 启动
 
